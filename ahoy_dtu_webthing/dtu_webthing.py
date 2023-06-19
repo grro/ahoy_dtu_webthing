@@ -20,15 +20,15 @@ class InverterWebThing(Thing):
 
         self.inverter = inverter
 
-        self.fetch_date = Value(inverter.fetch_date.strftime("%Y-%m-%dT%H:%M:%S"))
+        self.last_update = Value(inverter.last_update.strftime("%Y-%m-%dT%H:%M:%S"))
         self.add_property(
             Property(self,
-                     'fetch_date',
-                     self.fetch_date,
+                     'last_update',
+                     self.last_update,
                      metadata={
-                         'title': 'fetch_date',
+                         'title': 'last_update',
                          "type": "string",
-                         'description': 'The date [ISO DateTime]',
+                         'description': 'The last update [ISO DateTime]',
                          'readOnly': True,
                      }))
 
@@ -191,7 +191,7 @@ class InverterWebThing(Thing):
         self.i_ac.notify_of_external_update(self.inverter.i_ac)
         self.u_ac.notify_of_external_update(self.inverter.u_ac)
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
-        self.fetch_date.notify_of_external_update(self.inverter.fetch_date.strftime("%Y-%m-%dT%H:%M:%S"))
+        self.last_update.notify_of_external_update(self.inverter.last_update.strftime("%Y-%m-%dT%H:%M:%S"))
         self.temp.notify_of_external_update(self.inverter.temp)
         self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)

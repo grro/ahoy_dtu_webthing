@@ -25,7 +25,7 @@ class Inverter:
         self.efficiency = 0
         self.power_max = 0
         self.power_limit = 0
-        self.fetch_date = datetime.now()
+        self.last_update = datetime.now()
         self.is_available = False
         self.is_producing = False
         self.listener = None
@@ -96,7 +96,7 @@ class Inverter:
         self.p_dc = p_dc
         self.efficiency = efficiency
         self.temp = temp
-        self.fetch_date = datetime.now()
+        self.last_update = datetime.now()
         self.__notify_Listener()
 
     def register_listener(self, listener):
