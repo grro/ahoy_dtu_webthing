@@ -9,6 +9,7 @@ class Inverter:
     def __init__(self, base_uri: str, id: int, channels: int, name: str, serial: str):
         self.update_uri = re.sub("^/|/$", "", base_uri) + '/api/ctrl'
         self.uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
+        self.index_uri = re.sub("^/|/$", "", base_uri) + '/api/index'
         self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
         self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
 
@@ -25,52 +26,62 @@ class Inverter:
         self.power_max = 0
         self.power_limit = 0
         self.fetch_date = datetime.now()
+        self.is_available = False
+        self.is_producing = False
         self.listener = None
         self.refresh()
         self.set_power_limit(self.power_max)
 
     def refresh(self):
-        # fetch power limit
-        response = requests.get(self.config_uri)
-        inverter_configs = response.json()['inverter']
+       # fetch inverter info
+        response = requests.get(self.index_uri)
+        inverter_state = response.json()['inverter']
 
-        # fetch inverter info
-        response = requests.get(self.inverter_uri)
-        inverter_infos = response.json()['inverter']
+        self.is_available = inverter_state[self.id]['is_avail']
+        self.is_producing = inverter_state[self.id]['is_producing']
 
-        # fetch temp, power, etc
-        response = requests.get(self.uri)
-        inverter_measures = response.json()['inverter']
+        if self.is_producing:
+            # fetch power limit
+            response = requests.get(self.config_uri)
+            inverter_configs = response.json()['inverter']
 
-        p_ac = 0
-        i_ac = 0
-        u_ac  =0
-        p_dc = 0
-        efficiency = 0
-        temp = 0
-        power_limit = 0
-        power_max = sum(inverter_infos[self.id]['ch_max_pwr'])
+            # fetch inverter info
+            response = requests.get(self.inverter_uri)
+            inverter_infos = response.json()['inverter']
 
-        for config in inverter_configs[self.id]:
-            if config['fld'] == 'active_PowerLimit':
-                power_limit_percent = float(config['val'])
-                power_limit = int(power_max * power_limit_percent / 100)
+            # fetch temp, power, etc
+            response = requests.get(self.uri)
+            inverter_measures = response.json()['inverter']
 
-        for measure in inverter_measures[self.id]:
-            if measure['fld'] == 'P_AC':
-                p_ac = measure['val']
-            elif measure['fld'] == 'I_AC':
-                i_ac = measure['val']
-            elif measure['fld'] == 'U_AC':
-                u_ac = measure['val']
-            elif measure['fld'] == 'P_DC':
-                p_dc = measure['val']
-            elif measure['fld'] == 'Efficiency':
-                efficiency = measure['val']
-            elif measure['fld'] == 'Temp':
-                temp = measure['val']
+            p_ac = 0
+            i_ac = 0
+            u_ac  =0
+            p_dc = 0
+            efficiency = 0
+            temp = 0
+            power_limit = 0
+            power_max = sum(inverter_infos[self.id]['ch_max_pwr'])
 
-        self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
+            for config in inverter_configs[self.id]:
+                if config['fld'] == 'active_PowerLimit':
+                    power_limit_percent = float(config['val'])
+                    power_limit = int(power_max * power_limit_percent / 100)
+
+            for measure in inverter_measures[self.id]:
+                if measure['fld'] == 'P_AC':
+                    p_ac = measure['val']
+                elif measure['fld'] == 'I_AC':
+                    i_ac = measure['val']
+                elif measure['fld'] == 'U_AC':
+                    u_ac = measure['val']
+                elif measure['fld'] == 'P_DC':
+                    p_dc = measure['val']
+                elif measure['fld'] == 'Efficiency':
+                    efficiency = measure['val']
+                elif measure['fld'] == 'Temp':
+                    temp = measure['val']
+
+            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
 
     def set_power_limit(self, limit_watt: int):
         response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
