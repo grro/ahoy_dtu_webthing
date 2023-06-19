@@ -56,6 +56,30 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.power_limit = Value(inverter.power_limit, inverter.set_power_limit)
+        self.add_property(
+            Property(self,
+                     'power_limit',
+                     self.power_limit,
+                     metadata={
+                         'title': 'power_limit',
+                         "type": "integer",
+                         'description': 'The power limit [W]',
+                         'readOnly': False,
+                     }))
+
+        self.temp = Value(inverter.temp)
+        self.add_property(
+            Property(self,
+                     'temp',
+                     self.temp,
+                     metadata={
+                         'title': 'fetch_date',
+                         "type": "string",
+                         'description': 'The temperature [C]',
+                         'readOnly': True,
+                     }))
+
         self.p_dc = Value(inverter.p_dc)
         self.add_property(
             Property(self,
@@ -130,6 +154,7 @@ class InverterWebThing(Thing):
         self.u_ac.notify_of_external_update(self.inverter.u_ac)
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
         self.fetch_date.notify_of_external_update(self.inverter.fetch_date.strftime("%Y-%m-%dT%H:%M:%S"))
+        self.temp.notify_of_external_update(self.inverter.temp)
 
 
 def run_server(description: str, port: int, base_uri: str):
