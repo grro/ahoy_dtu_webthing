@@ -56,25 +56,25 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
-        self.is_available = Value(inverter.is_available)
+        self.available = Value(inverter.is_available)
         self.add_property(
             Property(self,
                      'is_available',
-                     self.is_available,
+                     self.available,
                      metadata={
-                         'title': 'is_available',
+                         'title': 'available',
                          "type": "boolean",
                          'description': 'True, if is available',
                          'readOnly': True,
                      }))
 
-        self.is_producing = Value(inverter.is_producing)
+        self.producing = Value(inverter.is_producing)
         self.add_property(
             Property(self,
                  'is_producing',
-                 self.is_producing,
-                 metadata={
-                     'title': 'is_producing',
+                     self.producing,
+                     metadata={
+                     'title': 'producing',
                      "type": "boolean",
                      'description': 'True, if is producing',
                      'readOnly': True,
@@ -184,8 +184,8 @@ class InverterWebThing(Thing):
         self.ioloop.add_callback(self.__on_value_changed)
 
     def __on_value_changed(self):
-        self.is_producing.notify_of_external_update(self.inverter.is_producing)
-        self.is_available.notify_of_external_update(self.inverter.is_available)
+        self.producing.notify_of_external_update(self.inverter.is_producing)
+        self.available.notify_of_external_update(self.inverter.is_available)
         self.p_dc.notify_of_external_update(self.inverter.p_dc)
         self.p_ac.notify_of_external_update(self.inverter.p_ac)
         self.i_ac.notify_of_external_update(self.inverter.i_ac)
