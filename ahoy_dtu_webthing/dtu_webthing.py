@@ -172,7 +172,7 @@ class InverterWebThing(Thing):
 
 
 def run_server(description: str, port: int, base_uri: str):
-    awning_webthings = [InverterWebThing(description, inverter) for inverter in  Dtu(base_uri).connect()]
+    awning_webthings = [InverterWebThing(description, inverter) for inverter in  Dtu.connect(base_uri).inverters]
     server = WebThingServer(MultipleThings(awning_webthings, 'Inverters'), port=port, disable_host_validation=True)
 
     logging.info('running webthing server http://localhost:' + str(port))

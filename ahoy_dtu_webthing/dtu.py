@@ -1,5 +1,4 @@
 from threading import Thread
-from typing import List
 import re
 import requests
 from time import sleep
@@ -9,6 +8,10 @@ class Inverter:
 
     def __init__(self, base_uri: str, id: int, channels: int, name: str, serial: str):
         self.update_uri = re.sub("^/|/$", "", base_uri) + '/api/ctrl'
+        self.uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
+        self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
+        self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
+
         self.id = id
         self.channel = channels
         self.name = name
@@ -23,7 +26,51 @@ class Inverter:
         self.power_limit = 0
         self.fetch_date = datetime.now()
         self.listener = None
+        self.refresh()
+        self.set_power_limit(self.power_max)
 
+    def refresh(self):
+        # fetch power limit
+        response = requests.get(self.config_uri)
+        inverter_configs = response.json()['inverter']
+
+        # fetch inverter info
+        response = requests.get(self.inverter_uri)
+        inverter_infos = response.json()['inverter']
+
+        # fetch temp, power, etc
+        response = requests.get(self.uri)
+        inverter_measures = response.json()['inverter']
+
+        p_ac = 0
+        i_ac = 0
+        u_ac  =0
+        p_dc = 0
+        efficiency = 0
+        temp = 0
+        power_limit = 0
+        power_max = sum(inverter_infos[self.id]['ch_max_pwr'])
+
+        for config in inverter_configs[self.id]:
+            if config['fld'] == 'active_PowerLimit':
+                power_limit_percent = float(config['val'])
+                power_limit = int(power_max * power_limit_percent / 100)
+
+        for measure in inverter_measures[self.id]:
+            if measure['fld'] == 'P_AC':
+                p_ac = measure['val']
+            elif measure['fld'] == 'I_AC':
+                i_ac = measure['val']
+            elif measure['fld'] == 'U_AC':
+                u_ac = measure['val']
+            elif measure['fld'] == 'P_DC':
+                p_dc = measure['val']
+            elif measure['fld'] == 'Efficiency':
+                efficiency = measure['val']
+            elif measure['fld'] == 'Temp':
+                temp = measure['val']
+
+        self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
 
     def set_power_limit(self, limit_watt: int):
         response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
@@ -59,79 +106,31 @@ class Inverter:
 
 
 
-class Updater:
+class Dtu:
 
-    def __init__(self, base_uri: str, inverters: List[Inverter], interval: int):
-        self.uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
-        self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
-        self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
-        self.inverters = inverters
-        self.interval = interval
+    def __init__(self, base_uri: str):
+        self.is_running = True
+        self.base_uri = base_uri
+        uri = re.sub("^/|/$", "", self.base_uri) + '/api/inverter/list'
+        response = requests.get(uri)
+        data = response.json()
+        self.interval = int(data['interval'])
+        self.inverters = [Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial']) for entry in data['inverter']]
+        Thread(target=self.__periodic_refresh, daemon=True)
 
     def __periodic_refresh(self):
-        while True:
+        while self.is_running:
             try:
-                # fetch power limit
-                response = requests.get(self.config_uri)
-                inverter_configs = response.json()['inverter']
-
-                # fetch inverter info
-                response = requests.get(self.inverter_uri)
-                inverter_infos = response.json()['inverter']
-
-                # fetch temp, power, etc
-                response = requests.get(self.uri)
-                inverter_measures = response.json()['inverter']
-                for i in range(0, len(inverter_measures)):
-                    p_ac = 0
-                    i_ac = 0
-                    u_ac  =0
-                    p_dc = 0
-                    efficiency = 0
-                    temp = 0
-                    power_limit = 0
-                    power_max = sum(inverter_infos[i]['ch_max_pwr'])
-
-                    for config in inverter_configs[i]:
-                        if config['fld'] == 'active_PowerLimit':
-                            power_limit_percent = float(config['val'])
-                            power_limit = int(power_max * power_limit_percent / 100)
-
-                    for measure in inverter_measures[i]:
-                        if measure['fld'] == 'P_AC':
-                            p_ac = measure['val']
-                        elif measure['fld'] == 'I_AC':
-                            i_ac = measure['val']
-                        elif measure['fld'] == 'U_AC':
-                            u_ac = measure['val']
-                        elif measure['fld'] == 'P_DC':
-                            p_dc = measure['val']
-                        elif measure['fld'] == 'Efficiency':
-                            efficiency = measure['val']
-                        elif measure['fld'] == 'Temp':
-                            temp = measure['val']
-
-                    self.inverters[i].update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
+                for inverter in self.inverters:
+                    inverter.refresh()
             except Exception as e:
                 print(e)
             sleep(self.interval)
 
-    def listen(self):
-        Thread(target=self.__periodic_refresh, daemon=True).start()
+    @staticmethod
+    def connect(base_uri: str):
+        return Dtu(base_uri)
 
-
-
-class Dtu:
-
-    def __init__(self, base_uri: str):
-        self.base_uri = base_uri
-
-    def connect(self) -> List[Inverter]:
-        uri = re.sub("^/|/$", "", self.base_uri) + '/api/inverter/list'
-        response = requests.get(uri)
-        data = response.json()
-        interval = int(data['interval'])
-        inverters = [Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial']) for entry in data['inverter']]
-        Updater(self.base_uri, inverters, interval).listen()
-        return inverters
+    def close(self):
+        self.is_running = False
 
