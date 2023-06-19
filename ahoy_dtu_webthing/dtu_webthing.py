@@ -155,6 +155,7 @@ class InverterWebThing(Thing):
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
         self.fetch_date.notify_of_external_update(self.inverter.fetch_date.strftime("%Y-%m-%dT%H:%M:%S"))
         self.temp.notify_of_external_update(self.inverter.temp)
+        self.power_limit.notify_of_external_update(self.inverter.power_limit)
 
 
 def run_server(description: str, port: int, base_uri: str):
