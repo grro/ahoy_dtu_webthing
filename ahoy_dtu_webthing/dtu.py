@@ -19,6 +19,7 @@ class Inverter:
         self.i_ac = 0
         self.temp = 0
         self.efficiency = 0
+        self.power_max = 0
         self.power_limit = 0
         self.fetch_date = datetime.now()
         self.listener = None
@@ -28,7 +29,8 @@ class Inverter:
         if response.status_code == 200 and response.json()['success'] == True:
             self.power_limit = limit_watt
 
-    def update(self, power_limit: int, p_ac: int, u_ac: int, i_ac: int, p_dc: int, efficiency: int, temp: int):
+    def update(self, power_max: int, power_limit: int, p_ac: int, u_ac: int, i_ac: int, p_dc: int, efficiency: int, temp: int):
+        self.power_max = power_max
         self.power_limit = power_limit
         self.p_ac = p_ac
         self.u_ac = u_ac
@@ -107,7 +109,7 @@ class Updater:
                         elif measure['fld'] == 'Temp':
                             temp = measure['val']
 
-                    self.inverters[i].update(power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
+                    self.inverters[i].update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
             except Exception as e:
                 print(e)
             sleep(self.interval)

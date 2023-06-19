@@ -56,6 +56,18 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.power_max = Value(inverter.power_max)
+        self.add_property(
+            Property(self,
+                     'power_max',
+                     self.power_max,
+                     metadata={
+                         'title': 'power_max',
+                         "type": "integer",
+                         'description': 'The max power [W]',
+                         'readOnly': True,
+                     }))
+
         self.power_limit = Value(inverter.power_limit, inverter.set_power_limit)
         self.add_property(
             Property(self,
@@ -155,6 +167,7 @@ class InverterWebThing(Thing):
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
         self.fetch_date.notify_of_external_update(self.inverter.fetch_date.strftime("%Y-%m-%dT%H:%M:%S"))
         self.temp.notify_of_external_update(self.inverter.temp)
+        self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)
 
 
