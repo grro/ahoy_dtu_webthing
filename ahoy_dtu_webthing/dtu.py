@@ -24,8 +24,10 @@ class Inverter:
         self.fetch_date = datetime.now()
         self.listener = None
 
+
     def set_power_limit(self, limit_watt: int):
         response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
+        response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_persistent_absolute", "val": limit_watt})
         if response.status_code == 200 and response.json()['success'] == True:
             self.power_limit = limit_watt
 
