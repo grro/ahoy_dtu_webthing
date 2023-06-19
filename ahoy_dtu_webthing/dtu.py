@@ -28,7 +28,6 @@ class Inverter:
         self.efficiency = efficiency
         self.fetch_date = datetime.now()
         self.__notify_Listener()
-        print(self)
 
     def register_listener(self, listener):
         self.listener = listener
