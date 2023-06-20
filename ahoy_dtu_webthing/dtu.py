@@ -1,12 +1,14 @@
 from threading import Thread
 import re
 import requests
+import logging
 from time import sleep
 from datetime import datetime
 
 class Inverter:
 
-    def __init__(self, base_uri: str, id: int, channels: int, name: str, serial: str):
+    def __init__(self, base_uri: str, id: int, channels: int, name: str, serial: str, interval: int):
+        self.is_running = True
         self.update_uri = re.sub("^/|/$", "", base_uri) + '/api/ctrl'
         self.uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
         self.index_uri = re.sub("^/|/$", "", base_uri) + '/api/index'
@@ -17,6 +19,7 @@ class Inverter:
         self.channel = channels
         self.name = name
         self.serial = serial
+        self.interval = interval
         self.p_dc = 0
         self.p_ac = 0
         self.u_ac = 0
@@ -29,8 +32,18 @@ class Inverter:
         self.is_available = False
         self.is_producing = False
         self.listener = None
-        self.refresh()
-        self.set_power_limit(self.power_max)
+        Thread(target=self.__periodic_refresh, daemon=True).start()
+
+    def close(self):
+        self.is_running = False
+
+    def __periodic_refresh(self):
+        while self.is_running:
+            try:
+                self.refresh()
+            except Exception as e:
+                logging.warning("error occurred refreshing inverter " + self.name + " " + str(e))
+            sleep(self.interval)
 
     def refresh(self):
        # fetch inverter info
@@ -84,8 +97,8 @@ class Inverter:
             self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
 
     def set_power_limit(self, limit_watt: int):
-        response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
-        response = requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_persistent_absolute", "val": limit_watt})
+        logging.info("inverter " + self.name + " set power limit to " + str(limit_watt) + " watt")
+        requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
 
     def update(self, power_max: int, power_limit: int, p_ac: int, u_ac: int, i_ac: int, p_dc: int, efficiency: int, temp: int):
         self.power_max = power_max
@@ -118,28 +131,18 @@ class Inverter:
 class Dtu:
 
     def __init__(self, base_uri: str):
-        self.is_running = True
         self.base_uri = base_uri
         uri = re.sub("^/|/$", "", self.base_uri) + '/api/inverter/list'
         response = requests.get(uri)
         data = response.json()
-        self.interval = int(data['interval'])
-        self.inverters = [Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial']) for entry in data['inverter']]
-        Thread(target=self.__periodic_refresh, daemon=True)
-
-    def __periodic_refresh(self):
-        while self.is_running:
-            try:
-                for inverter in self.inverters:
-                    inverter.refresh()
-            except Exception as e:
-                print(e)
-            sleep(self.interval)
+        interval = int(data['interval'])
+        self.inverters = [Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial'], interval) for entry in data['inverter']]
 
     @staticmethod
     def connect(base_uri: str):
         return Dtu(base_uri)
 
     def close(self):
-        self.is_running = False
+        for inverter in self.inverters:
+            inverter.close()
 
