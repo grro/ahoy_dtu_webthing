@@ -25,6 +25,7 @@ class Inverter:
         self.u_ac = 0
         self.i_ac = 0
         self.temp = 0
+        self.frequency = 0
         self.efficiency = 0
         self.power_max = 0
         self.power_limit = 0
@@ -79,6 +80,7 @@ class Inverter:
             p_dc = 0
             efficiency = 0
             temp = 0
+            frequency = 0
             power_limit = 0
             power_max = sum(inverter_infos[self.id]['ch_max_pwr'])
 
@@ -89,25 +91,27 @@ class Inverter:
 
             for measure in inverter_measures[self.id]:
                 if measure['fld'] == 'P_AC':
-                    p_ac = measure['val']
+                    p_ac = float(measure['val'])
                 elif measure['fld'] == 'I_AC':
-                    i_ac = measure['val']
+                    i_ac = float(measure['val'])
                 elif measure['fld'] == 'U_AC':
-                    u_ac = measure['val']
+                    u_ac = float(measure['val'])
                 elif measure['fld'] == 'P_DC':
-                    p_dc = measure['val']
+                    p_dc = float(measure['val'])
                 elif measure['fld'] == 'Efficiency':
-                    efficiency = measure['val']
+                    efficiency = float(measure['val'])
                 elif measure['fld'] == 'Temp':
-                    temp = measure['val']
+                    temp = float(measure['val'])
+                elif measure['fld'] == 'F_AC':
+                    frequency = float(measure['val'])
 
-            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp)
+            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp, frequency)
 
     def set_power_limit(self, limit_watt: int):
         logging.info("inverter " + self.name + " set power limit to " + str(limit_watt) + " watt")
         requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
 
-    def update(self, power_max: int, power_limit: int, p_ac: int, u_ac: int, i_ac: int, p_dc: int, efficiency: int, temp: int):
+    def update(self, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, efficiency: float, temp: float, frequency: float):
         self.power_max = power_max
         self.power_limit = power_limit
         self.p_ac = p_ac
@@ -116,6 +120,7 @@ class Inverter:
         self.p_dc = p_dc
         self.efficiency = efficiency
         self.temp = temp
+        self.frequency = frequency
         self.last_update = datetime.now()
         self.__notify_Listener()
 

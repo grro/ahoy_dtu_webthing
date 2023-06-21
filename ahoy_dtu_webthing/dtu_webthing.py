@@ -123,7 +123,7 @@ class InverterWebThing(Thing):
                      self.p_dc,
                      metadata={
                          'title': 'Power DC',
-                         "type": "integer",
+                         "type": "number",
                          'description': 'The power DC [W]',
                          'readOnly': True,
                      }))
@@ -135,7 +135,7 @@ class InverterWebThing(Thing):
                      self.p_ac,
                      metadata={
                          'title': 'Power AC',
-                         "type": "integer",
+                         "type": "number",
                          'description': 'The power AC [W]',
                          'readOnly': True,
                      }))
@@ -147,7 +147,7 @@ class InverterWebThing(Thing):
                      self.u_ac,
                      metadata={
                          'title': 'Voltage AC',
-                         "type": "integer",
+                         "type": "number",
                          'description': 'The voltage AC [V]',
                          'readOnly': True,
                      }))
@@ -159,7 +159,7 @@ class InverterWebThing(Thing):
                      self.i_ac,
                      metadata={
                          'title': 'Current AC',
-                         "type": "integer",
+                         "type": "number",
                          'description': 'The current AC [A]',
                          'readOnly': True,
                      }))
@@ -171,8 +171,20 @@ class InverterWebThing(Thing):
                      self.efficiency,
                      metadata={
                          'title': 'Efficiency',
-                         "type": "integer",
+                         "type": "number",
                          'description': 'The efficiency [%]',
+                         'readOnly': True,
+                     }))
+
+        self.frequency = Value(inverter.frequency)
+        self.add_property(
+            Property(self,
+                     'frequency',
+                     self.frequency,
+                     metadata={
+                         'title': 'frequency',
+                         "type": "number",
+                         'description': 'The frequency [Hz]',
                          'readOnly': True,
                      }))
 
@@ -190,6 +202,7 @@ class InverterWebThing(Thing):
         self.p_ac.notify_of_external_update(self.inverter.p_ac)
         self.i_ac.notify_of_external_update(self.inverter.i_ac)
         self.u_ac.notify_of_external_update(self.inverter.u_ac)
+        self.frequency.notify_of_external_update(self.inverter.frequency)
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
         self.last_update.notify_of_external_update(self.inverter.last_update.strftime("%Y-%m-%dT%H:%M:%S"))
         self.temp.notify_of_external_update(self.inverter.temp)
