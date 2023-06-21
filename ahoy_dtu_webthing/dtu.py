@@ -46,19 +46,19 @@ class Inverter:
             sleep(self.interval)
 
     def refresh(self):
-       # fetch inverter info
+        # fetch inverter info
         response = requests.get(self.index_uri)
         inverter_state = response.json()['inverter']
 
         previous_is_available = self.is_available
         self.is_available = inverter_state[self.id]['is_avail']
         if previous_is_available != self.is_available:
-            logging.info("invert " + str(self.name) + " is " + ("" if self.is_available else "not ") + " available")
+            logging.info("inverter " + str(self.name) + " is " + ("" if self.is_available else "not ") + "available")
 
         previous_is_producing = self.is_producing
         self.is_producing = inverter_state[self.id]['is_producing']
         if previous_is_producing != self.is_producing:
-            logging.info("invert " + str(self.name) + " is " + ("" if self.is_producing else "not ") + " producing")
+            logging.info("inverter " + str(self.name) + " is " + ("" if self.is_producing else "not ") + "producing")
 
         if self.is_producing:
             # fetch power limit
