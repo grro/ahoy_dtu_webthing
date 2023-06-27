@@ -116,18 +116,6 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
-        self.p_dc = Value(inverter.p_dc)
-        self.add_property(
-            Property(self,
-                     'p_dc',
-                     self.p_dc,
-                     metadata={
-                         'title': 'Power DC',
-                         "type": "number",
-                         'description': 'The power DC [W]',
-                         'readOnly': True,
-                     }))
-
         self.u_dc1 = Value(inverter.u_dc1)
         self.add_property(
             Property(self,
@@ -173,6 +161,42 @@ class InverterWebThing(Thing):
                          'title': 'Current DC - Channel 2',
                          "type": "number",
                          'description': 'The current DC channel 2 [A]',
+                         'readOnly': True,
+                     }))
+
+        self.p_dc = Value(inverter.p_dc)
+        self.add_property(
+            Property(self,
+                     'p_dc',
+                     self.p_dc,
+                     metadata={
+                         'title': 'Power DC',
+                         "type": "number",
+                         'description': 'The power DC [W]',
+                         'readOnly': True,
+                     }))
+
+        self.p_dc1 = Value(inverter.p_dc1)
+        self.add_property(
+            Property(self,
+                     'p_dc1',
+                     self.p_dc1,
+                     metadata={
+                         'title': 'Power DC channel 1',
+                         "type": "number",
+                         'description': 'The power DC channel 1 [W]',
+                         'readOnly': True,
+                     }))
+
+        self.p_dc2 = Value(inverter.p_dc2)
+        self.add_property(
+            Property(self,
+                     'p_dc2',
+                     self.p_dc2,
+                     metadata={
+                         'title': 'Power DC channel 2',
+                         "type": "number",
+                         'description': 'The power DC channel 2 [W]',
                          'readOnly': True,
                      }))
 
@@ -247,6 +271,8 @@ class InverterWebThing(Thing):
         self.producing.notify_of_external_update(self.inverter.is_producing)
         self.available.notify_of_external_update(self.inverter.is_available)
         self.p_dc.notify_of_external_update(self.inverter.p_dc)
+        self.p_dc1.notify_of_external_update(self.inverter.p_dc1)
+        self.p_dc2.notify_of_external_update(self.inverter.p_dc2)
         self.u_dc1.notify_of_external_update(self.inverter.u_dc1)
         self.u_dc2.notify_of_external_update(self.inverter.u_dc2)
         self.i_dc1.notify_of_external_update(self.inverter.i_dc1)
