@@ -1,4 +1,5 @@
 from threading import Thread
+from random import randint
 import re
 import requests
 import logging
@@ -45,6 +46,7 @@ class Inverter:
         self.is_running = False
 
     def __periodic_refresh(self):
+        sleep(randint(0,self.interval))
         while self.is_running:
             try:
                 self.refresh()
