@@ -21,6 +21,8 @@ class Inverter:
         self.serial = serial
         self.interval = interval
         self.p_dc = 0
+        self.p_dc1 = 0
+        self.p_dc2 = 0
         self.u_dc1 = 0
         self.u_dc2 = 0
         self.i_dc1 = 0
@@ -82,6 +84,8 @@ class Inverter:
             i_ac = 0
             u_ac  =0
             p_dc = 0
+            p_dc1 = None
+            p_dc2 = None
             u_dc1 = None
             u_dc2 = None
             i_dc1 = None
@@ -115,7 +119,12 @@ class Inverter:
                     else:
                         i_dc2 = float(measure['val'])
                 elif measure['fld'] == 'P_DC':
-                    p_dc = float(measure['val'])
+                    if p_dc1 is None:
+                        p_dc1 = float(measure['val'])
+                    elif p_dc2 is None:
+                        p_dc2 = float(measure['val'])
+                    else:
+                        p_dc = float(measure['val'])
                 elif measure['fld'] == 'Efficiency':
                     efficiency = float(measure['val'])
                 elif measure['fld'] == 'Temp':
@@ -123,13 +132,13 @@ class Inverter:
                 elif measure['fld'] == 'F_AC':
                     frequency = float(measure['val'])
 
-            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, u_dc1, u_dc2, i_dc1, i_dc2, efficiency, temp, frequency)
+            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, p_dc1, p_dc2, u_dc1, u_dc2, i_dc1, i_dc2, efficiency, temp, frequency)
 
     def set_power_limit(self, limit_watt: int):
         logging.info("inverter " + self.name + " set power limit to " + str(limit_watt) + " watt")
         requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
 
-    def update(self, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, u_dc1: float, u_dc2: float, i_dc1: float, i_dc2: float, efficiency: float, temp: float, frequency: float):
+    def update(self, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, p_dc1:float, p_dc2: float, u_dc1: float, u_dc2: float, i_dc1: float, i_dc2: float, efficiency: float, temp: float, frequency: float):
         self.power_max = power_max
         self.power_limit = power_limit
         self.p_ac = p_ac
@@ -140,6 +149,8 @@ class Inverter:
         self.i_dc2 = i_dc2
         self.i_ac = i_ac
         self.p_dc = p_dc
+        self.p_dc1 = p_dc1
+        self.p_dc2 = p_dc2
         self.efficiency = efficiency
         self.temp = temp
         self.frequency = frequency
