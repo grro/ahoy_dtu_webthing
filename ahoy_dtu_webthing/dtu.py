@@ -50,7 +50,7 @@ class Inverter:
                 self.refresh()
             except Exception as e:
                 logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(self.power_max) + " watt)")
-            sleep(self.interval)
+            sleep(int(self.interval/2))
 
     def refresh(self):
         # fetch inverter info
