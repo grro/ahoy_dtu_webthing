@@ -128,6 +128,54 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.u_dc1 = Value(inverter.u_dc1)
+        self.add_property(
+            Property(self,
+                     'u_dc1',
+                     self.u_dc1,
+                     metadata={
+                         'title': 'Voltage DC - Channel 1',
+                         "type": "number",
+                         'description': 'The voltage DC channel 1 [V]',
+                         'readOnly': True,
+                     }))
+
+        self.u_dc2 = Value(inverter.u_dc2)
+        self.add_property(
+            Property(self,
+                     'u_dc2',
+                     self.u_dc2,
+                     metadata={
+                         'title': 'Voltage DC - Channel 2',
+                         "type": "number",
+                         'description': 'The voltage DC channel 2 [V]',
+                         'readOnly': True,
+                     }))
+
+        self.i_dc1 = Value(inverter.i_dc1)
+        self.add_property(
+            Property(self,
+                     'i_dc1',
+                     self.i_dc1,
+                     metadata={
+                         'title': 'Current DC - Channel 1',
+                         "type": "number",
+                         'description': 'The current DC channel 1 [A]',
+                         'readOnly': True,
+                     }))
+
+        self.i_dc2 = Value(inverter.i_dc2)
+        self.add_property(
+            Property(self,
+                     'i_dc2',
+                     self.i_dc2,
+                     metadata={
+                         'title': 'Current DC - Channel 2',
+                         "type": "number",
+                         'description': 'The current DC channel 2 [A]',
+                         'readOnly': True,
+                     }))
+
         self.p_ac = Value(inverter.p_ac)
         self.add_property(
             Property(self,
@@ -199,6 +247,10 @@ class InverterWebThing(Thing):
         self.producing.notify_of_external_update(self.inverter.is_producing)
         self.available.notify_of_external_update(self.inverter.is_available)
         self.p_dc.notify_of_external_update(self.inverter.p_dc)
+        self.u_dc1.notify_of_external_update(self.inverter.u_dc1)
+        self.u_dc2.notify_of_external_update(self.inverter.u_dc2)
+        self.i_dc1.notify_of_external_update(self.inverter.i_dc1)
+        self.i_dc2.notify_of_external_update(self.inverter.i_dc2)
         self.p_ac.notify_of_external_update(self.inverter.p_ac)
         self.i_ac.notify_of_external_update(self.inverter.i_ac)
         self.u_ac.notify_of_external_update(self.inverter.u_ac)

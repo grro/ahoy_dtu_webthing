@@ -21,6 +21,10 @@ class Inverter:
         self.serial = serial
         self.interval = interval
         self.p_dc = 0
+        self.u_dc1 = 0
+        self.u_dc2 = 0
+        self.i_dc1 = 0
+        self.i_dc2 = 0
         self.p_ac = 0
         self.u_ac = 0
         self.i_ac = 0
@@ -78,7 +82,11 @@ class Inverter:
             i_ac = 0
             u_ac  =0
             p_dc = 0
-            efficiency = 0
+            u_dc1 = None
+            u_dc2 = None
+            i_dc1 = None
+            i_dc2 = None
+            efficiency = None
             temp = 0
             frequency = 0
             power_limit = 0
@@ -96,6 +104,16 @@ class Inverter:
                     i_ac = float(measure['val'])
                 elif measure['fld'] == 'U_AC':
                     u_ac = float(measure['val'])
+                elif measure['fld'] == 'U_DC':
+                    if u_dc1 is None:
+                        u_dc1 = float(measure['val'])
+                    else:
+                        u_dc2 = float(measure['val'])
+                elif measure['fld'] == 'I_DC':
+                    if i_dc1 is None:
+                        i_dc1 = float(measure['val'])
+                    else:
+                        i_dc2 = float(measure['val'])
                 elif measure['fld'] == 'P_DC':
                     p_dc = float(measure['val'])
                 elif measure['fld'] == 'Efficiency':
@@ -105,17 +123,21 @@ class Inverter:
                 elif measure['fld'] == 'F_AC':
                     frequency = float(measure['val'])
 
-            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, efficiency, temp, frequency)
+            self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, u_dc1, u_dc2, i_dc1, i_dc2, efficiency, temp, frequency)
 
     def set_power_limit(self, limit_watt: int):
         logging.info("inverter " + self.name + " set power limit to " + str(limit_watt) + " watt")
         requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
 
-    def update(self, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, efficiency: float, temp: float, frequency: float):
+    def update(self, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, u_dc1: float, u_dc2: float, i_dc1: float, i_dc2: float, efficiency: float, temp: float, frequency: float):
         self.power_max = power_max
         self.power_limit = power_limit
         self.p_ac = p_ac
         self.u_ac = u_ac
+        self.u_dc1 = u_dc1
+        self.u_dc2 = u_dc2
+        self.i_dc1 = i_dc1
+        self.i_dc2 = i_dc2
         self.i_ac = i_ac
         self.p_dc = p_dc
         self.efficiency = efficiency
