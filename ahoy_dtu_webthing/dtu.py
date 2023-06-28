@@ -135,7 +135,8 @@ class Inverter:
                     frequency = float(measure['val'])
 
             self.update(power_max, power_limit, p_ac, u_ac, i_ac, p_dc, p_dc1, p_dc2, u_dc1, u_dc2, i_dc1, i_dc2, efficiency, temp, frequency)
-
+        else:
+            self.update(self.power_max, self.power_limit, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     def set_power_limit(self, limit_watt: int):
         logging.info("inverter " + self.name + " set power limit to " + str(limit_watt) + " watt")
         requests.post(self.update_uri, json={"id": self.id, "cmd": "limit_nonpersistent_absolute", "val": limit_watt})
