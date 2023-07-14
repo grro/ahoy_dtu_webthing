@@ -11,8 +11,9 @@ class Inverter:
 
     def __init__(self, base_uri: str, id: int, channels: int, name: str, serial: str, interval: int):
         self.is_running = True
+        self.uri = base_uri
         self.update_uri = re.sub("^/|/$", "", base_uri) + '/api/ctrl'
-        self.uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
+        self.live_uri = re.sub("^/|/$", "", base_uri) + '/api/record/live'
         self.index_uri = re.sub("^/|/$", "", base_uri) + '/api/index'
         self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
         self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
@@ -83,7 +84,7 @@ class Inverter:
             inverter_infos = response.json()['inverter']
 
             # fetch temp, power, etc
-            response = session.get(self.uri, timeout=60)
+            response = session.get(self.live_uri, timeout=60)
             inverter_measures = response.json()['inverter']
 
             p_ac = 0

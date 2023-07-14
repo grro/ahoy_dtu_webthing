@@ -32,6 +32,18 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.uri = Value(inverter.uri)
+        self.add_property(
+            Property(self,
+                     'uri',
+                     self.uri,
+                     metadata={
+                         'title': 'uri',
+                         "type": "string",
+                         'description': 'The inverter uri',
+                         'readOnly': True,
+                     }))
+
         self.name = Value(inverter.name)
         self.add_property(
             Property(self,
