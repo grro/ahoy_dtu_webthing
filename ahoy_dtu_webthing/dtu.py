@@ -46,17 +46,18 @@ class Inverter:
         self.is_running = False
 
     def __periodic_refresh(self):
-        sleep(randint(0,self.interval))
         while self.is_running:
             try:
+                sleep(randint(0, self.interval))
                 self.refresh()
+                sleep(int(self.interval/2))
             except Exception as e:
                 logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(self.power_max) + " watt)")
-            sleep(int(self.interval/2))
+                sleep(5)
 
     def refresh(self):
         # fetch inverter info
-        response = requests.get(self.index_uri)
+        response = requests.get(self.index_uri, timeout=60)
         inverter_state = response.json()['inverter']
 
         previous_is_available = self.is_available
@@ -71,15 +72,15 @@ class Inverter:
 
         if self.is_producing:
             # fetch power limit
-            response = requests.get(self.config_uri)
+            response = requests.get(self.config_uri, timeout=60)
             inverter_configs = response.json()['inverter']
 
             # fetch inverter info
-            response = requests.get(self.inverter_uri)
+            response = requests.get(self.inverter_uri, timeout=60)
             inverter_infos = response.json()['inverter']
 
             # fetch temp, power, etc
-            response = requests.get(self.uri)
+            response = requests.get(self.uri, timeout=60)
             inverter_measures = response.json()['inverter']
 
             p_ac = 0
