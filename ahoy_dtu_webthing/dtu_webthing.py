@@ -264,7 +264,7 @@ class InverterWebThing(Thing):
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.inverter.register_listener(self.on_value_changed)
 
-    def on_value_changed(self):
+    def on_value_changed(self, inverter: Inverter):
         self.ioloop.add_callback(self.__on_value_changed)
 
     def __on_value_changed(self):

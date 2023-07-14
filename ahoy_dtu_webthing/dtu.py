@@ -2,6 +2,7 @@ from threading import Thread
 from random import randint
 import re
 import requests
+from requests import Session
 import logging
 from time import sleep
 from datetime import datetime
@@ -46,18 +47,20 @@ class Inverter:
         self.is_running = False
 
     def __periodic_refresh(self):
+        session = Session()
         while self.is_running:
             try:
                 sleep(randint(0, self.interval))
-                self.refresh()
+                self.refresh(session)
                 sleep(int(self.interval/2))
             except Exception as e:
                 logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(self.power_max) + " watt)")
                 sleep(5)
+                session = Session()
 
-    def refresh(self):
+    def refresh(self, session: Session):
         # fetch inverter info
-        response = requests.get(self.index_uri, timeout=60)
+        response = session.get(self.index_uri, timeout=60)
         inverter_state = response.json()['inverter']
 
         previous_is_available = self.is_available
@@ -72,15 +75,15 @@ class Inverter:
 
         if self.is_producing:
             # fetch power limit
-            response = requests.get(self.config_uri, timeout=60)
+            response = session.get(self.config_uri, timeout=60)
             inverter_configs = response.json()['inverter']
 
             # fetch inverter info
-            response = requests.get(self.inverter_uri, timeout=60)
+            response = session.get(self.inverter_uri, timeout=60)
             inverter_infos = response.json()['inverter']
 
             # fetch temp, power, etc
-            response = requests.get(self.uri, timeout=60)
+            response = session.get(self.uri, timeout=60)
             inverter_measures = response.json()['inverter']
 
             p_ac = 0
@@ -166,7 +169,7 @@ class Inverter:
 
     def __notify_Listener(self):
         if self.listener is not None:
-            self.listener()
+            self.listener(self)
 
     def __str__(self):
         return self.name + " " + self.serial + " (P_AC: " + str(self.p_ac) + ", U_AC: " + str(self.u_ac) + ", I_AC: " + str(self.i_ac) + \
