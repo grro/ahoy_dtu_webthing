@@ -24,7 +24,7 @@ After this installation you can use the Webthing http endpoint in your Python co
 ```
 sudo dtu --command listen --port 7122 --base_uri http://10.1.11.35/
 ```
-Here the webthing API is bound to the local port 7122. Additionally the base uri of the AhyoDTU REST api must be set. 
+Here the webthing API is bound to the local port 7122. Additionally, the base uri of the AhyoDTU REST api must be set. 
 
 As an alternative to the *list* command, you can also use the *register* command to register and start the webthing service as a systemd entity.
 This way, the webthing service is started automatically at boot time. Starting the server manually with the *listen* command is no longer necessary.
