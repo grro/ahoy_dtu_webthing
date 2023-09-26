@@ -52,6 +52,13 @@ class Inverter:
         self.session = Session()
         Thread(target=self.__periodic_refresh, daemon=True).start()
 
+    @property
+    def spare_power(self) -> int:
+        if self.p_ac < (self.power_limit * 0.9):
+            return 0
+        else:
+            return self.power_max - self.power_limit
+
     def close(self):
         self.is_running = False
 
@@ -67,7 +74,7 @@ class Inverter:
             try:
                 sleep(randint(0, self.interval))
                 self.refresh()
-                sleep(int(self.interval/2))
+                sleep(int(self.interval/5))
             except Exception as e:
                 logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(self.power_max) + " watt)")
                 sleep(5)
@@ -172,7 +179,7 @@ class Inverter:
             logging.warning("error occurred getting " + self.name + " inverter data " + str(e))
 
     def set_power_limit(self, limit_watt: int):
-        logging.info("inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt  (" + str(round(limit_watt*100/self.power_max)) + " %)")
+        logging.info("inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt")
         try:
             data = {"id": self.id,
                     "cmd": "limit_nonpersistent_absolute",
@@ -186,12 +193,11 @@ class Inverter:
         if timestamp_last_success != self.timestamp_last_success:
             self.timestamp_last_success = timestamp_last_success
             self.power_max = power_max
-            if self.power_limit != power_limit:
-                self.power_limit = power_limit
-                logging.debug("inverter " + self.name + " power limit updated. New value" + str(self.power_limit) + " Watt (" + str(round(power_limit*100/self.power_max)) + " %)")
+            self.power_limit = power_limit
             if self.p_ac != p_ac:
                 self.p_ac = p_ac
-                logging.debug("inverter " + self.name + " current power updated. New value" + str(self.p_ac) + " Watt")
+                logging.debug("inverter " + self.name + " current power: " + str(self.p_ac) + " Watt " +
+                              "(power limit " + str(self.power_limit) + " Watt; spare power " + str(self.spare_power) + " Watt)")
             self.u_ac = u_ac
             self.u_dc1 = u_dc1
             self.u_dc2 = u_dc2

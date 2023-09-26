@@ -116,6 +116,18 @@ class InverterWebThing(Thing):
                          'readOnly': False,
                      }))
 
+        self.spare_power = Value(inverter.spare_power)
+        self.add_property(
+            Property(self,
+                     'spare_power',
+                     self.spare_power,
+                     metadata={
+                         'title': 'spare_power',
+                         "type": "integer",
+                         'description': 'The potential spare power [W]',
+                         'readOnly': True,
+                     }))
+
         self.temp = Value(inverter.temp)
         self.add_property(
             Property(self,
@@ -298,6 +310,7 @@ class InverterWebThing(Thing):
         self.temp.notify_of_external_update(self.inverter.temp)
         self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)
+        self.spare_power.notify_of_external_update(self.inverter.spare_power)
 
 
 def run_server(description: str, port: int, base_uri: str):
