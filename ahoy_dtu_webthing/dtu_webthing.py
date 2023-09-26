@@ -20,13 +20,13 @@ class InverterWebThing(Thing):
 
         self.inverter = inverter
 
-        self.last_update = Value(inverter.last_update.strftime("%Y-%m-%dT%H:%M:%S"))
+        self.timestamp_last_success = Value("")
         self.add_property(
             Property(self,
-                     'last_update',
-                     self.last_update,
+                     'timestamp_last_success',
+                     self.timestamp_last_success,
                      metadata={
-                         'title': 'last_update',
+                         'title': 'timestamp_last_success',
                          "type": "string",
                          'description': 'The last update [ISO DateTime]',
                          'readOnly': True,
@@ -122,7 +122,7 @@ class InverterWebThing(Thing):
                      'temp',
                      self.temp,
                      metadata={
-                         'title': 'fetch_date',
+                         'title': 'temperature',
                          "type": "string",
                          'description': 'The temperature [C]',
                          'readOnly': True,
@@ -294,7 +294,7 @@ class InverterWebThing(Thing):
         self.u_ac.notify_of_external_update(self.inverter.u_ac)
         self.frequency.notify_of_external_update(self.inverter.frequency)
         self.efficiency.notify_of_external_update(self.inverter.efficiency)
-        self.last_update.notify_of_external_update(self.inverter.last_update.strftime("%Y-%m-%dT%H:%M:%S"))
+        self.timestamp_last_success.notify_of_external_update(self.inverter.timestamp_last_success.strftime("%Y-%m-%dT%H:%M:%S"))
         self.temp.notify_of_external_update(self.inverter.temp)
         self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)
