@@ -1,5 +1,6 @@
 from webthing import (MultipleThings, Property, Thing, Value, WebThingServer)
 import logging
+import json
 import tornado.ioloop
 from ahoy_dtu_webthing.dtu import Dtu, Inverter
 
@@ -284,6 +285,18 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.measurements = Value("")
+        self.add_property(
+            Property(self,
+                     'measurements',
+                     self.measurements,
+                     metadata={
+                         'title': 'measurements',
+                         "type": "string",
+                         'description': 'The measurements as json string',
+                         'readOnly': True,
+                     }))
+
 
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.inverter.register_listener(self.on_value_changed)
@@ -311,6 +324,7 @@ class InverterWebThing(Thing):
         self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)
         self.spare_power.notify_of_external_update(self.inverter.spare_power)
+        self.measurements.notify_of_external_update(json.dumps(self.inverter.measurements, indent=2))
 
 
 def run_server(description: str, port: int, base_uri: str):

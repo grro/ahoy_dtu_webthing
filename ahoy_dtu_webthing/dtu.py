@@ -1,12 +1,15 @@
 from threading import Thread
 from random import randint
-from typing import Set, Optional
+from typing import Set, Optional, List, Dict
 import re
+import itertools
 import requests
 from requests import Session
 import logging
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
+from redzoo.database.simple import SimpleDB
+
 
 
 class Inverter:
@@ -24,7 +27,7 @@ class Inverter:
         self.index_uri = re.sub("^/|/$", "", base_uri) + '/api/index'
         self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
         self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
-
+        self.db = SimpleDB("inverter_" + name)
         self.id = id
         self.channel = channels
         self.name = name
@@ -46,6 +49,7 @@ class Inverter:
         self.power_max = 0
         self.power_limit = 0
         self.timestamp_last_success = datetime.fromtimestamp(0)
+        self.timestamp_limit_updated = datetime.now()
         self.is_available = False
         self.is_producing = False
         self.listener = None
@@ -54,9 +58,10 @@ class Inverter:
 
     @property
     def spare_power(self) -> int:
-        if self.p_ac < (self.power_limit * 0.9):
+        if self.p_ac < (self.power_limit * 0.7):
             return 0
         else:
+            # power limit (almost) reached
             return self.power_max - self.power_limit
 
     def close(self):
@@ -180,6 +185,7 @@ class Inverter:
 
     def set_power_limit(self, limit_watt: int):
         logging.info("inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt")
+        self.timestamp_limit_updated = datetime.now()
         try:
             data = {"id": self.id,
                     "cmd": "limit_nonpersistent_absolute",
@@ -194,10 +200,7 @@ class Inverter:
             self.timestamp_last_success = timestamp_last_success
             self.power_max = power_max
             self.power_limit = power_limit
-            if self.p_ac != p_ac:
-                self.p_ac = p_ac
-                logging.debug("inverter " + self.name + " current power: " + str(self.p_ac) + " Watt " +
-                              "(power limit " + str(self.power_limit) + " Watt; spare power " + str(self.spare_power) + " Watt)")
+            self.p_ac = p_ac
             self.u_ac = u_ac
             self.u_dc1 = u_dc1
             self.u_dc2 = u_dc2
@@ -211,6 +214,38 @@ class Inverter:
             self.temp = temp
             self.frequency = frequency
             self.__notify_listener()
+            self.record_measure()
+
+    def record_measure(self):
+        if self.timestamp_last_success > self.timestamp_limit_updated + timedelta(minutes=5):
+            power = self.p_dc
+            if power > 0:
+                power = round(power/25) * 25
+            power_limit = self.power_limit
+            if power_limit > 0:
+                power_limit = round(power_limit/25) * 25
+            key = str(power) + str(power_limit)
+
+            records: List = list(self.db.get(key, []))
+            record = {
+                    "p_dc": self.p_dc,
+                    "p_limit": self.power_limit,
+                    "p_dc1": self.p_dc1,
+                    "u_dc1": self.u_dc1,
+                    "i_dc1": self.i_dc1,
+                    "p_dc2": self.p_dc2,
+                    "u_dc2": self.u_dc2,
+                    "i_dc2": self.i_dc2
+            }
+            records.append(record)
+            if len(records) > 50:
+                records.pop(0)
+
+            self.db.put(key, records)
+
+    @property
+    def measurements(self) -> List[Dict[str, float]]:
+        return list(itertools.chain.from_iterable(self.db.get_values()))
 
     def register_listener(self, listener):
         self.listener = listener

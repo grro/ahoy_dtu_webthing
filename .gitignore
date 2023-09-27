@@ -161,3 +161,4 @@ cython_debug/
 /ahoy_dtu_webthing.iml
 /.idea/modules.xml
 /.idea/misc.xml
+/requirements.txt
