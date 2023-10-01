@@ -297,6 +297,30 @@ class InverterWebThing(Thing):
                          'readOnly': True,
                      }))
 
+        self.irradiation_1 = Value(0)
+        self.add_property(
+            Property(self,
+                     'irradiation_1',
+                     self.irradiation_1,
+                     metadata={
+                         'title': 'irradiation channel 1',
+                         "type": "float",
+                         'description': 'The irradiation of channel 1',
+                         'readOnly': True,
+                     }))
+
+        self.irradiation_2 = Value(0)
+        self.add_property(
+            Property(self,
+                     'irradiation_2',
+                     self.irradiation_2,
+                     metadata={
+                         'title': 'irradiation channel 2',
+                         "type": "float",
+                         'description': 'The irradiation of channel 2',
+                         'readOnly': True,
+                     }))
+
 
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.inverter.register_listener(self.on_value_changed)
@@ -324,6 +348,8 @@ class InverterWebThing(Thing):
         self.power_max.notify_of_external_update(self.inverter.power_max)
         self.power_limit.notify_of_external_update(self.inverter.power_limit)
         self.spare_power.notify_of_external_update(self.inverter.spare_power)
+        self.irradiation_1.notify_of_external_update(self.inverter.irradiation_1)
+        self.irradiation_2.notify_of_external_update(self.inverter.irradiation_2)
         self.measurements.notify_of_external_update(json.dumps(self.inverter.measurements, indent=2))
 
 

@@ -33,6 +33,8 @@ class Inverter:
         self.name = name
         self.serial = serial
         self.interval = interval
+        self.irradiation_1 = 0
+        self.irradiation_2 = 0
         self.p_dc = 0
         self.p_dc1 = 0
         self.p_dc2 = 0
@@ -128,6 +130,8 @@ class Inverter:
                 i_ac = 0
                 u_ac  =0
                 p_dc = 0
+                irradiation_1 = None
+                irradiation_2 = None
                 p_dc1 = None
                 p_dc2 = None
                 u_dc1 = None
@@ -152,6 +156,11 @@ class Inverter:
                         i_ac = float(measure['val'])
                     elif measure['fld'] == 'U_AC':
                         u_ac = float(measure['val'])
+                    elif measure['fld'] == 'Irradiation':
+                        if irradiation_1 is None:
+                            irradiation_1 = float(measure['val'])
+                        else:
+                            irradiation_2 = float(measure['val'])
                     elif measure['fld'] == 'U_DC':
                         if u_dc1 is None:
                             u_dc1 = float(measure['val'])
@@ -176,10 +185,43 @@ class Inverter:
                     elif measure['fld'] == 'F_AC':
                         frequency = float(measure['val'])
 
-                self.update(timestamp_last_success, power_max, power_limit, p_ac, u_ac, i_ac, p_dc, p_dc1, p_dc2, u_dc1, u_dc2, i_dc1, i_dc2, efficiency, temp, frequency)
+                self.update(timestamp_last_success,
+                            power_max,
+                            power_limit,
+                            irradiation_1,
+                            irradiation_2,
+                            p_ac,
+                            u_ac,
+                            i_ac,
+                            p_dc,
+                            p_dc1,
+                            p_dc2,
+                            u_dc1,
+                            u_dc2,
+                            i_dc1,
+                            i_dc2,
+                            efficiency,
+                            temp,
+                            frequency)
             else:
-                self.update(timestamp_last_success, self.power_max, self.power_limit, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
+                self.update(timestamp_last_success,
+                            self.power_max,
+                            self.power_limit,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0)
         except Exception as e:
             logging.warning("error occurred getting " + self.name + " inverter data " + str(e))
 
@@ -195,11 +237,31 @@ class Inverter:
         except Exception as e:
             logging.warning("error occurred updating power limit of " + self.name + " inverter with " + str(limit_watt) + " " + str(e))
 
-    def update(self, timestamp_last_success: datetime, power_max: int, power_limit: int, p_ac: float, u_ac: float, i_ac: float, p_dc: float, p_dc1:float, p_dc2: float, u_dc1: float, u_dc2: float, i_dc1: float, i_dc2: float, efficiency: float, temp: float, frequency: float):
+    def update(self,
+               timestamp_last_success: datetime,
+               power_max: int,
+               power_limit: int,
+               irradiation_1: float,
+               irradiation_2: float,
+               p_ac: float,
+               u_ac: float,
+               i_ac: float,
+               p_dc: float,
+               p_dc1:float,
+               p_dc2: float,
+               u_dc1: float,
+               u_dc2: float,
+               i_dc1: float,
+               i_dc2: float,
+               efficiency: float,
+               temp: float,
+               frequency: float):
         if timestamp_last_success != self.timestamp_last_success:
             self.timestamp_last_success = timestamp_last_success
             self.power_max = power_max
             self.power_limit = power_limit
+            self.irradiation_1 = irradiation_1
+            self.irradiation_2 = irradiation_2
             self.p_ac = p_ac
             self.u_ac = u_ac
             self.u_dc1 = u_dc1
@@ -228,6 +290,7 @@ class Inverter:
 
             records: List = list(self.db.get(key, []))
             record = {
+                    "p_ac": self.p_ac,
                     "p_dc": self.p_dc,
                     "p_limit": self.power_limit,
                     "p_dc1": self.p_dc1,
