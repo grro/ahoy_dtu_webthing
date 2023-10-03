@@ -6,7 +6,7 @@ import itertools
 import requests
 from requests import Session
 import logging
-from time import sleep
+from time import time, sleep
 from datetime import datetime, timedelta
 from redzoo.database.simple import SimpleDB
 
@@ -47,8 +47,8 @@ class Inverter:
         self.temp = 0
         self.frequency = 0
         self.efficiency = 0
-        self.power_max = 0
-        self.power_limit = 0
+        self.power_max = 600
+        self.power_limit = self.power_max
         self.timestamp_last_success = datetime.fromtimestamp(0)
         self.timestamp_limit_updated = datetime.now()
         self.is_available = False
@@ -229,12 +229,12 @@ class Inverter:
             logging.warning("error occurred getting " + self.name + " inverter data " + str(e))
 
     def __start_limit_updated_trace(self, new_limit_watt: int):
-        if self.__trace is not None:
+        if self.power_limit == new_limit_watt:  # no change
+            return
+        if self.__trace is not None:   # terminate running trace (if exists)
             self.__trace.stop()
             self.__trace = None
-        if self.power_limit == new_limit_watt:
-            return
-        elif self.power_limit == self.power_max:
+        elif self.power_limit == self.power_max:  # new limit is max limit
             self.__trace = LimitUpdatedTrace(self)
 
     def set_power_limit(self, limit_watt: int):
@@ -352,7 +352,6 @@ class Dtu:
 class LimitUpdatedTrace:
 
     def __init__(self, inverter: Inverter):
-        self.is_running = True
         self.inverter = inverter
         self.p_ac_old = inverter.p_ac
         self.power_limit_old = inverter.power_limit
@@ -370,49 +369,43 @@ class LimitUpdatedTrace:
         self.p_dc2_new = None
         self.u_dc2_new = None
         self.i_dc2_new = None
-
-    def start(self):
         self.is_running = True
-        Thread(target=self.__trace, daemon=True)
+        Thread(target=self.__trace, daemon=True).start()
 
     def __trace(self):
-        start = datetime.now()
+        sleep(time() + 2*60)
+        if self.is_running:  # still running?
+            self.p_ac_new = self.inverter.p_ac
+            self.power_limit_new = self.inverter.power_limit
+            self.p_dc1_new = self.inverter.p_dc1
+            self.u_dc1_new = self.inverter.u_dc1
+            self.i_dc1_new = self.inverter.i_dc1
+            self.p_dc2_new = self.inverter.p_dc2
+            self.u_dc2_new = self.inverter.u_dc2
+            self.i_dc2_new = self.inverter.i_dc2
 
-        while self.is_running:
-            if datetime.now() > start + timedelta(minutes=2):
-                self.p_ac_new = self.inverter.p_ac
-                self.power_limit_new = self.inverter.power_limit
-                self.p_dc1_new = self.inverter.p_dc1
-                self.u_dc1_new = self.inverter.u_dc1
-                self.i_dc1_new = self.inverter.i_dc1
-                self.p_dc2_new = self.inverter.p_dc2
-                self.u_dc2_new = self.inverter.u_dc2
-                self.i_dc2_new = self.inverter.i_dc2
-
-                if self.power_limit_old != self.power_limit_new and \
-                   self.p_ac_new > self.power_limit_new * 0:  # threshold to be updated
-                    record = {
-                        "p_ac_old": self.p_ac_old,
-                        "power_limit_old": self.power_limit_old,
-                        "p_dc1_old": self.p_dc1_old,
-                        "u_dc1_old": self.u_dc1_old,
-                        "i_dc1_old": self.i_dc1_old,
-                        "p_dc2_old": self.p_dc2_old,
-                        "u_dc2_old": self.u_dc2_old,
-                        "i_dc2_old": self.i_dc2_old,
-                        "p_ac_new": self.p_ac_new,
-                        "power_limit_new": self.power_limit_new,
-                        "p_dc1_new": self.p_dc1_new,
-                        "u_dc1_new": self.u_dc1_new,
-                        "i_dc1_new": self.i_dc1_new,
-                        "p_dc2_new": self.p_dc2_new,
-                        "u_dc2_new": self.u_dc2_new,
-                        "i_dc2_new": self.i_dc2_new,
-                    }
-                    self.inverter.record_measure(record)
-                self.stop()
-            else:
-                sleep(10)
+            if self.power_limit_old != self.power_limit_new and \
+                self.p_ac_new > self.power_limit_new * 0:  # threshold to be updated
+                record = {
+                    "p_ac_old": self.p_ac_old,
+                    "power_limit_old": self.power_limit_old,
+                    "p_dc1_old": self.p_dc1_old,
+                    "u_dc1_old": self.u_dc1_old,
+                    "i_dc1_old": self.i_dc1_old,
+                    "p_dc2_old": self.p_dc2_old,
+                    "u_dc2_old": self.u_dc2_old,
+                    "i_dc2_old": self.i_dc2_old,
+                    "p_ac_new": self.p_ac_new,
+                    "power_limit_new": self.power_limit_new,
+                    "p_dc1_new": self.p_dc1_new,
+                    "u_dc1_new": self.u_dc1_new,
+                    "i_dc1_new": self.i_dc1_new,
+                    "p_dc2_new": self.p_dc2_new,
+                    "u_dc2_new": self.u_dc2_new,
+                    "i_dc2_new": self.i_dc2_new,
+                }
+                self.inverter.record_measure(record)
+        self.stop()
 
     def stop(self):
         self.is_running = False
