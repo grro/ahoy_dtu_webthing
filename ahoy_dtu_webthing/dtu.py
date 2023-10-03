@@ -384,27 +384,25 @@ class LimitUpdatedTrace:
             self.u_dc2_new = self.inverter.u_dc2
             self.i_dc2_new = self.inverter.i_dc2
 
-            if self.power_limit_old != self.power_limit_new and \
-                self.p_ac_new > self.power_limit_new * 0:  # threshold to be updated
-                record = {
-                    "p_ac_old": self.p_ac_old,
-                    "power_limit_old": self.power_limit_old,
-                    "p_dc1_old": self.p_dc1_old,
-                    "u_dc1_old": self.u_dc1_old,
-                    "i_dc1_old": self.i_dc1_old,
-                    "p_dc2_old": self.p_dc2_old,
-                    "u_dc2_old": self.u_dc2_old,
-                    "i_dc2_old": self.i_dc2_old,
-                    "p_ac_new": self.p_ac_new,
-                    "power_limit_new": self.power_limit_new,
-                    "p_dc1_new": self.p_dc1_new,
-                    "u_dc1_new": self.u_dc1_new,
-                    "i_dc1_new": self.i_dc1_new,
-                    "p_dc2_new": self.p_dc2_new,
-                    "u_dc2_new": self.u_dc2_new,
-                    "i_dc2_new": self.i_dc2_new,
-                }
-                self.inverter.record_measure(record)
+            record = {
+                "p_ac_old": self.p_ac_old,
+                "power_limit_old": self.power_limit_old,
+                "p_dc1_old": self.p_dc1_old,
+                "u_dc1_old": self.u_dc1_old,
+                "i_dc1_old": self.i_dc1_old,
+                "p_dc2_old": self.p_dc2_old,
+                "u_dc2_old": self.u_dc2_old,
+                "i_dc2_old": self.i_dc2_old,
+                "p_ac_new": self.p_ac_new,
+                "power_limit_new": self.power_limit_new,
+                "p_dc1_new": self.p_dc1_new,
+                "u_dc1_new": self.u_dc1_new,
+                "i_dc1_new": self.i_dc1_new,
+                "p_dc2_new": self.p_dc2_new,
+                "u_dc2_new": self.u_dc2_new,
+                "i_dc2_new": self.i_dc2_new,
+            }
+            self.inverter.record_measure(record)
 
     def stop(self):
         self.is_still_running = False
