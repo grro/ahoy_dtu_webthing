@@ -369,12 +369,12 @@ class LimitUpdatedTrace:
         self.p_dc2_new = None
         self.u_dc2_new = None
         self.i_dc2_new = None
-        self.is_running = True
+        self.is_still_running = True
         Thread(target=self.__trace, daemon=True).start()
 
     def __trace(self):
-        sleep(time() + 2*60)
-        if self.is_running:  # still running?
+        sleep(2*60)
+        if self.is_still_running:
             self.p_ac_new = self.inverter.p_ac
             self.power_limit_new = self.inverter.power_limit
             self.p_dc1_new = self.inverter.p_dc1
@@ -405,7 +405,6 @@ class LimitUpdatedTrace:
                     "i_dc2_new": self.i_dc2_new,
                 }
                 self.inverter.record_measure(record)
-        self.stop()
 
     def stop(self):
-        self.is_running = False
+        self.is_still_running = False
