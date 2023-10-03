@@ -228,11 +228,13 @@ class Inverter:
         except Exception as e:
             logging.warning("error occurred getting " + self.name + " inverter data " + str(e))
 
-    def __start_limit_updated_trace(self):
+    def __start_limit_updated_trace(self, new_limit_watt: int):
         if self.__trace is not None:
             self.__trace.stop()
             self.__trace = None
-        if self.power_limit == self.power_max:
+        if self.power_limit == new_limit_watt:
+            return
+        elif self.power_limit == self.power_max:
             self.__trace = LimitUpdatedTrace(self)
 
     def set_power_limit(self, limit_watt: int):
@@ -240,7 +242,7 @@ class Inverter:
             "inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt")
         self.timestamp_limit_updated = datetime.now()
         try:
-            self.__start_limit_updated_trace()
+            self.__start_limit_updated_trace(limit_watt)
             data = {"id": self.id,
                     "cmd": "limit_nonpersistent_absolute",
                     "val": limit_watt}
