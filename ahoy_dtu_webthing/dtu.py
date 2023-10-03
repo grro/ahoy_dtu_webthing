@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from redzoo.database.simple import SimpleDB
 
 
-
 class Inverter:
 
     @staticmethod
@@ -55,6 +54,7 @@ class Inverter:
         self.is_available = False
         self.is_producing = False
         self.listener = None
+        self.__trace = None
         self.session = Session()
         Thread(target=self.__periodic_refresh, daemon=True).start()
 
@@ -81,9 +81,10 @@ class Inverter:
             try:
                 sleep(randint(0, self.interval))
                 self.refresh()
-                sleep(int(self.interval/5))
+                sleep(int(self.interval / 5))
             except Exception as e:
-                logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(self.power_max) + " watt)")
+                logging.warning("error occurred refreshing inverter " + self.name + " " + str(e) + " (max " + str(
+                    self.power_max) + " watt)")
                 sleep(5)
                 try:
                     self.__renew_session()
@@ -102,12 +103,14 @@ class Inverter:
             previous_is_available = self.is_available
             self.is_available = inverter_state[self.id]['is_avail']
             if previous_is_available != self.is_available:
-                logging.info("inverter " + str(self.name) + " is " + ("" if self.is_available else "not ") + "available")
+                logging.info(
+                    "inverter " + str(self.name) + " is " + ("" if self.is_available else "not ") + "available")
 
             previous_is_producing = self.is_producing
             self.is_producing = inverter_state[self.id]['is_producing']
             if previous_is_producing != self.is_producing:
-                logging.info("inverter " + str(self.name) + " is " + ("" if self.is_producing else "not ") + "producing")
+                logging.info(
+                    "inverter " + str(self.name) + " is " + ("" if self.is_producing else "not ") + "producing")
 
             if self.is_producing:
                 # fetch power limit
@@ -128,7 +131,7 @@ class Inverter:
 
                 p_ac = 0
                 i_ac = 0
-                u_ac  =0
+                u_ac = 0
                 p_dc = 0
                 irradiation_1 = None
                 irradiation_2 = None
@@ -225,17 +228,28 @@ class Inverter:
         except Exception as e:
             logging.warning("error occurred getting " + self.name + " inverter data " + str(e))
 
+    def __start_limit_updated_trace(self):
+        if self.__trace is not None:
+            self.__trace.stop()
+            self.__trace = None
+        if self.power_limit == self.power_max:
+            self.__trace = LimitUpdatedTrace(self)
+
     def set_power_limit(self, limit_watt: int):
-        logging.info("inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt")
+        logging.info(
+            "inverter " + self.name + " setting (non-persistent) absolute power limit to " + str(limit_watt) + " Watt")
         self.timestamp_limit_updated = datetime.now()
         try:
+            self.__start_limit_updated_trace()
             data = {"id": self.id,
                     "cmd": "limit_nonpersistent_absolute",
                     "val": limit_watt}
             resp = requests.post(self.update_uri, json=data)
             resp.raise_for_status()
         except Exception as e:
-            logging.warning("error occurred updating power limit of " + self.name + " inverter with " + str(limit_watt) + " " + str(e))
+            logging.warning(
+                "error occurred updating power limit of " + self.name + " inverter with " + str(limit_watt) + " " + str(
+                    e))
 
     def update(self,
                timestamp_last_success: datetime,
@@ -247,7 +261,7 @@ class Inverter:
                u_ac: float,
                i_ac: float,
                p_dc: float,
-               p_dc1:float,
+               p_dc1: float,
                p_dc2: float,
                u_dc1: float,
                u_dc2: float,
@@ -276,35 +290,14 @@ class Inverter:
             self.temp = temp
             self.frequency = frequency
             self.__notify_listener()
-            self.record_measure()
 
-    def record_measure(self):
-        if self.timestamp_last_success > self.timestamp_limit_updated + timedelta(minutes=5):
-            power = self.p_dc
-            if power > 0:
-                power = round(power/25) * 25
-            power_limit = self.power_limit
-            if power_limit > 0:
-                power_limit = round(power_limit/25) * 25
-            key = str(power) + str(power_limit)
-
-            records: List = list(self.db.get(key, []))
-            record = {
-                    "p_ac": self.p_ac,
-                    "p_dc": self.p_dc,
-                    "p_limit": self.power_limit,
-                    "p_dc1": self.p_dc1,
-                    "u_dc1": self.u_dc1,
-                    "i_dc1": self.i_dc1,
-                    "p_dc2": self.p_dc2,
-                    "u_dc2": self.u_dc2,
-                    "i_dc2": self.i_dc2
-            }
-            records.append(record)
-            if len(records) > 50:
-                records.pop(0)
-
-            self.db.put(key, records)
+    def record_measure(self, record: Dict[str, float]):
+        key = str(record['power_limit_new'])
+        records: List = list(self.db.get(key, []))
+        records.append(record)
+        if len(records) > 50:
+            records.pop(0)
+        self.db.put(key, records)
 
     @property
     def measurements(self) -> List[Dict[str, float]]:
@@ -318,12 +311,12 @@ class Inverter:
             self.listener(self)
 
     def __str__(self):
-        return self.name + " " + self.serial + " (P_AC: " + str(self.p_ac) + ", U_AC: " + str(self.u_ac) + ", I_AC: " + str(self.i_ac) + \
-                ", P_DC: " + str(self.p_dc) + ", EFFICIENCY: " + str(self.efficiency) +  ")"
+        return self.name + " " + self.serial + " (P_AC: " + str(self.p_ac) + ", U_AC: " + str(
+            self.u_ac) + ", I_AC: " + str(self.i_ac) + \
+            ", P_DC: " + str(self.p_dc) + ", EFFICIENCY: " + str(self.efficiency) + ")"
 
     def __repr__(self):
-        return  self.__str__()
-
+        return self.__str__()
 
 
 class Dtu:
@@ -334,9 +327,10 @@ class Dtu:
         response = requests.get(uri)
         data = response.json()
         interval = int(data['interval'])
-        self.inverters = [Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial'], interval)
-                          for entry in data['inverter']
-                          if len(inverter_filter) == 0 or entry['name'] in inverter_filter]
+        self.inverters = [
+            Inverter(self.base_uri, entry['id'], entry['channels'], entry['name'], entry['serial'], interval)
+            for entry in data['inverter']
+            if len(inverter_filter) == 0 or entry['name'] in inverter_filter]
 
     def inverter_by_name(self, name: str) -> Optional[Inverter]:
         for inverter in self.inverters:
@@ -352,3 +346,71 @@ class Dtu:
         for inverter in self.inverters:
             inverter.close()
 
+
+class LimitUpdatedTrace:
+
+    def __init__(self, inverter: Inverter):
+        self.is_running = True
+        self.inverter = inverter
+        self.p_ac_old = inverter.p_ac
+        self.power_limit_old = inverter.power_limit
+        self.p_dc1_old = inverter.p_dc1
+        self.u_dc1_old = inverter.u_dc1
+        self.i_dc1_old = inverter.i_dc1
+        self.p_dc2_old = inverter.p_dc2
+        self.u_dc2_old = inverter.u_dc2
+        self.i_dc2_old = inverter.i_dc2
+        self.p_ac_new = None
+        self.power_limit_new = None
+        self.p_dc1_new = None
+        self.u_dc1_new = None
+        self.i_dc1_new = None
+        self.p_dc2_new = None
+        self.u_dc2_new = None
+        self.i_dc2_new = None
+
+    def start(self):
+        self.is_running = True
+        Thread(target=self.__trace, daemon=True)
+
+    def __trace(self):
+        start = datetime.now()
+
+        while self.is_running:
+            if datetime.now() > start + timedelta(minutes=2):
+                self.p_ac_new = self.inverter.p_ac
+                self.power_limit_new = self.inverter.power_limit
+                self.p_dc1_new = self.inverter.p_dc1
+                self.u_dc1_new = self.inverter.u_dc1
+                self.i_dc1_new = self.inverter.i_dc1
+                self.p_dc2_new = self.inverter.p_dc2
+                self.u_dc2_new = self.inverter.u_dc2
+                self.i_dc2_new = self.inverter.i_dc2
+
+                if self.power_limit_old != self.power_limit_new and \
+                   self.p_ac_new > self.power_limit_new * 0:  # threshold to be updated
+                    record = {
+                        "p_ac_old": self.p_ac_old,
+                        "power_limit_old": self.power_limit_old,
+                        "p_dc1_old": self.p_dc1_old,
+                        "u_dc1_old": self.u_dc1_old,
+                        "i_dc1_old": self.i_dc1_old,
+                        "p_dc2_old": self.p_dc2_old,
+                        "u_dc2_old": self.u_dc2_old,
+                        "i_dc2_old": self.i_dc2_old,
+                        "p_ac_new": self.p_ac_new,
+                        "power_limit_new": self.power_limit_new,
+                        "p_dc1_new": self.p_dc1_new,
+                        "u_dc1_new": self.u_dc1_new,
+                        "i_dc1_new": self.i_dc1_new,
+                        "p_dc2_new": self.p_dc2_new,
+                        "u_dc2_new": self.u_dc2_new,
+                        "i_dc2_new": self.i_dc2_new,
+                    }
+                    self.inverter.record_measure(record)
+                self.stop()
+            else:
+                sleep(10)
+
+    def stop(self):
+        self.is_running = False
