@@ -1,14 +1,78 @@
 from threading import Thread
 from random import randint
+from dataclasses import dataclass
 from typing import Set, Optional, List, Dict
 import re
 import itertools
 import requests
 from requests import Session
 import logging
-from time import time, sleep
-from datetime import datetime, timedelta
+from time import sleep
+from datetime import datetime
 from redzoo.database.simple import SimpleDB
+
+
+@dataclass
+class InverterState:
+    p_ac: float
+    power_max: int
+    power_limit: int
+    p_dc1: int
+    u_dc1: float
+    i_dc1: float
+    p_dc2: int
+    u_dc2: float
+    i_dc2: float
+
+
+class ChannelSurplus:
+
+    def __init__(self, name: str, is_channel1: bool):
+        self.name = name
+        self.is_channel1 = is_channel1
+        self.db = SimpleDB("inverter_" + name + "_ch1" if is_channel1 else "_ch2")
+
+    @staticmethod
+    def key(p_dc: int, u_dc: float) -> str:
+        return str(p_dc) + "_" + str(u_dc)
+
+    def record_measure(self, inverter_state_old: InverterState, inverter_state_new: InverterState):
+        if inverter_state_old.power_limit == 600 and inverter_state_new.power_limit < inverter_state_old.power_limit:
+            u_dc_limited = round(inverter_state_new.u_dc1 if self.is_channel1 else inverter_state_new.u_dc1)
+            u_dc_unlimited = round(inverter_state_old.u_dc1 if self.is_channel1 else inverter_state_old.u_dc2)
+            diff_dc = 100-round(u_dc_unlimited*100/u_dc_limited)
+            if diff_dc > 5:
+                p_dc_limited = round(inverter_state_new.p_dc1 if self.is_channel1 else inverter_state_new.p_dc1)
+                p_dc_unlimited = round(inverter_state_old.p_dc1 if self.is_channel1 else inverter_state_old.p_dc1)
+                if p_dc_unlimited > 0:
+                    diff_p = 100-round(p_dc_limited*100/p_dc_unlimited)
+                    if diff_p > 10:
+                        key = self.key(p_dc_limited, u_dc_limited)
+                        records: List[int] = list(self.db.get(key, []))
+                        records.append(p_dc_unlimited)
+                        if len(records) > 30:
+                            records.pop(0)
+                        self.db.put(key, records)
+                        logging.info(self.name + "#channel" + ("1" if self.is_channel1 else "2") + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
+
+    def measurements(self) -> List[Dict[str, float]]:
+        return list(itertools.chain.from_iterable(self.db.get_values()))
+
+    def spare_power(self, current_inverter_state: InverterState) -> int:
+        if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
+            # power limit not reached
+            return 0
+        else:
+            # power limit (almost) reached
+            p_limit = round(current_inverter_state.power_max/2)
+            p_dc_current = current_inverter_state.p_dc1
+            u_dc_current = current_inverter_state.u_dc1
+            records = sorted(list(self.db.get(self.key(p_dc_current, u_dc_current), [])))
+            if len(records) == 0:
+                return p_limit - p_dc_current
+            else:
+                p_dc_predicted = records[int(len(records)*0.5)]
+                return p_dc_predicted - p_dc_current
 
 
 class Inverter:
@@ -26,7 +90,6 @@ class Inverter:
         self.index_uri = re.sub("^/|/$", "", base_uri) + '/api/index'
         self.config_uri = re.sub("^/|/$", "", base_uri) + '/api/record/config'
         self.inverter_uri = re.sub("^/|/$", "", base_uri) + '/api/inverter/list'
-        self.db = SimpleDB("inverter_" + name)
         self.id = id
         self.channel = channels
         self.name = name
@@ -54,17 +117,15 @@ class Inverter:
         self.is_available = False
         self.is_producing = False
         self.listener = None
+        self.channel1_surplus = ChannelSurplus(self.name, True)
+        self.channel2_surplus = ChannelSurplus(self.name, False)
         self.__trace = None
         self.session = Session()
         Thread(target=self.__periodic_refresh, daemon=True).start()
 
     @property
     def spare_power(self) -> int:
-        if self.p_ac < (self.power_limit * 0.7):
-            return 0
-        else:
-            # power limit (almost) reached
-            return self.power_max - self.power_limit
+        return self.channel1_surplus.spare_power(self.state()) + self.channel2_surplus.spare_power(self.state())
 
     def close(self):
         self.is_running = False
@@ -293,17 +354,27 @@ class Inverter:
             self.frequency = frequency
             self.__notify_listener()
 
-    def record_measure(self, record: Dict[str, float]):
-        key = str(record['power_limit_new'])
-        records: List = list(self.db.get(key, []))
-        records.append(record)
-        if len(records) > 50:
-            records.pop(0)
-        self.db.put(key, records)
+    def state(self) -> InverterState:
+        return InverterState(p_ac=self.p_ac,
+                             power_max=self.power_max,
+                             power_limit=self.power_limit,
+                             p_dc1=self.p_dc1,
+                             u_dc1=self.u_dc1,
+                             i_dc1=self.i_dc1,
+                             p_dc2=self.p_dc2,
+                             u_dc2=self.u_dc2,
+                             i_dc2=self.i_dc2)
+
+    def record_measure(self, inverter_state_old: InverterState, inverter_state_new: InverterState):
+        self.channel1_surplus.record_measure(inverter_state_old, inverter_state_new)
+        self.channel2_surplus.record_measure(inverter_state_old, inverter_state_new)
 
     @property
-    def measurements(self) -> List[Dict[str, float]]:
-        return list(itertools.chain.from_iterable(self.db.get_values()))
+    def measurements(self) -> Dict[str, List[Dict[str, float]]]:
+        return {
+                "channel1" : self.channel1_surplus.measurements(),
+                "channel2" : self.channel2_surplus.measurements()
+               }
 
     def register_listener(self, listener):
         self.listener = listener
@@ -352,57 +423,13 @@ class Dtu:
 class LimitUpdatedTrace:
 
     def __init__(self, inverter: Inverter):
-        self.inverter = inverter
-        self.p_ac_old = inverter.p_ac
-        self.power_limit_old = inverter.power_limit
-        self.p_dc1_old = inverter.p_dc1
-        self.u_dc1_old = inverter.u_dc1
-        self.i_dc1_old = inverter.i_dc1
-        self.p_dc2_old = inverter.p_dc2
-        self.u_dc2_old = inverter.u_dc2
-        self.i_dc2_old = inverter.i_dc2
-        self.p_ac_new = None
-        self.power_limit_new = None
-        self.p_dc1_new = None
-        self.u_dc1_new = None
-        self.i_dc1_new = None
-        self.p_dc2_new = None
-        self.u_dc2_new = None
-        self.i_dc2_new = None
         self.is_still_running = True
-        Thread(target=self.__trace, daemon=True).start()
+        Thread(target=self.__trace, args=(inverter, inverter.state()), daemon=True).start()
 
-    def __trace(self):
+    def __trace(self, inverter: Inverter, inverter_state_old: InverterState):
         sleep(2*60)
         if self.is_still_running:
-            self.p_ac_new = self.inverter.p_ac
-            self.power_limit_new = self.inverter.power_limit
-            self.p_dc1_new = self.inverter.p_dc1
-            self.u_dc1_new = self.inverter.u_dc1
-            self.i_dc1_new = self.inverter.i_dc1
-            self.p_dc2_new = self.inverter.p_dc2
-            self.u_dc2_new = self.inverter.u_dc2
-            self.i_dc2_new = self.inverter.i_dc2
-
-            record = {
-                "p_ac_old": self.p_ac_old,
-                "power_limit_old": self.power_limit_old,
-                "p_dc1_old": self.p_dc1_old,
-                "u_dc1_old": self.u_dc1_old,
-                "i_dc1_old": self.i_dc1_old,
-                "p_dc2_old": self.p_dc2_old,
-                "u_dc2_old": self.u_dc2_old,
-                "i_dc2_old": self.i_dc2_old,
-                "p_ac_new": self.p_ac_new,
-                "power_limit_new": self.power_limit_new,
-                "p_dc1_new": self.p_dc1_new,
-                "u_dc1_new": self.u_dc1_new,
-                "i_dc1_new": self.i_dc1_new,
-                "p_dc2_new": self.p_dc2_new,
-                "u_dc2_new": self.u_dc2_new,
-                "i_dc2_new": self.i_dc2_new,
-            }
-            self.inverter.record_measure(record)
+            inverter.record_measure(inverter_state_old, inverter.state())
 
     def stop(self):
         self.is_still_running = False
