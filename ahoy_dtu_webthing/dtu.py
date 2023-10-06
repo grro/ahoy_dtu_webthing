@@ -1,12 +1,13 @@
+import statistics
+import re
+import itertools
+import requests
+import logging
 from threading import Thread
 from random import randint
 from dataclasses import dataclass
 from typing import Set, Optional, List, Dict
-import re
-import itertools
-import requests
 from requests import Session
-import logging
 from time import sleep
 from datetime import datetime
 from redzoo.database.simple import SimpleDB
@@ -33,24 +34,24 @@ class ChannelSurplus:
         self.db = SimpleDB("inverter_" + name + "_ch1" if is_channel1 else "_ch2")
 
     @staticmethod
-    def key(p_dc: int, u_dc: float) -> str:
-        return str(p_dc) + "_" + str(u_dc)
+    def key(p_dc_limited: int, u_dc_limited: float) -> str:
+        return str(round(p_dc_limited)) + "_" + str(round(u_dc_limited/5)*5)
 
-    def record_measure(self, inverter_state_old: InverterState, inverter_state_new: InverterState):
-        if inverter_state_old.power_limit == 600 and inverter_state_new.power_limit < inverter_state_old.power_limit:
-            u_dc_limited = round(inverter_state_new.u_dc1 if self.is_channel1 else inverter_state_new.u_dc1)
-            u_dc_unlimited = round(inverter_state_old.u_dc1 if self.is_channel1 else inverter_state_old.u_dc2)
+    def record_measure(self, inverter_state_previous: InverterState, inverter_state_current: InverterState):
+        if inverter_state_previous.power_limit == inverter_state_previous.power_max and inverter_state_current.power_limit < inverter_state_previous.power_limit:
+            u_dc_limited = round(inverter_state_current.u_dc1 if self.is_channel1 else inverter_state_current.u_dc2)
+            u_dc_unlimited = round(inverter_state_previous.u_dc1 if self.is_channel1 else inverter_state_previous.u_dc2)
             diff_dc = 100-round(u_dc_unlimited*100/u_dc_limited)
-            if diff_dc > 5:
-                p_dc_limited = round(inverter_state_new.p_dc1 if self.is_channel1 else inverter_state_new.p_dc1)
-                p_dc_unlimited = round(inverter_state_old.p_dc1 if self.is_channel1 else inverter_state_old.p_dc1)
+            if diff_dc > 5:   # diff dc > 5%
+                p_dc_limited = round(inverter_state_current.p_dc1 if self.is_channel1 else inverter_state_current.p_dc2)
+                p_dc_unlimited = round(inverter_state_previous.p_dc1 if self.is_channel1 else inverter_state_previous.p_dc2)
                 if p_dc_unlimited > 0:
                     diff_p = 100-round(p_dc_limited*100/p_dc_unlimited)
-                    if diff_p > 10:
+                    if diff_p > 10:  # diff p > 10%
                         key = self.key(p_dc_limited, u_dc_limited)
-                        records: List[int] = list(self.db.get(key, []))
+                        records = list(self.db.get(key, []))
                         records.append(p_dc_unlimited)
-                        if len(records) > 30:
+                        if len(records) > 20:
                             records.pop(0)
                         self.db.put(key, records)
                         logging.info(self.name + "#channel" + ("1" if self.is_channel1 else "2") + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
@@ -64,15 +65,15 @@ class ChannelSurplus:
             return 0
         else:
             # power limit (almost) reached
-            p_limit = round(current_inverter_state.power_max/2)
+            p_ac_limit = round(current_inverter_state.power_max/2)
             p_dc_current = current_inverter_state.p_dc1
             u_dc_current = current_inverter_state.u_dc1
-            records = sorted(list(self.db.get(self.key(p_dc_current, u_dc_current), [])))
-            if len(records) == 0:
-                return p_limit - p_dc_current
-            else:
-                p_dc_predicted = records[int(len(records)*0.5)]
-                return p_dc_predicted - p_dc_current
+            spare = p_ac_limit - p_dc_current
+            p_dc_unlimited_list = sorted(list(self.db.get(self.key(p_dc_current, u_dc_current), [])))
+            if len(p_dc_unlimited_list) > 0:
+                p_dc_unlimited = statistics.median(p_dc_unlimited_list)
+                spare = round(p_dc_unlimited/5)*5 - p_dc_current
+            return 0 if spare < 0 else spare
 
 
 class Inverter:
