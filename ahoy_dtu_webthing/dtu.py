@@ -34,8 +34,12 @@ class ChannelSurplus:
         self.db = SimpleDB("inverter_" + name + "_ch1" if is_channel1 else "_ch2")
 
     @staticmethod
-    def key(p_dc_limited: int, u_dc_limited: float) -> str:
-        return str(round(p_dc_limited)) + "_" + str(round(u_dc_limited/5)*5)
+    def smoothen(power: int) -> int:
+        return round(power/5)*5  # 0 Watt, 5 Watt, 10 Watt, 15 Watt, ...
+
+    @staticmethod
+    def __key(p_dc_limited: int, u_dc_limited: float) -> str:
+        return str(ChannelSurplus.smoothen(p_dc_limited)) + "_" + str(round(u_dc_limited))
 
     def record_measure(self, inverter_state_previous: InverterState, inverter_state_current: InverterState):
         if inverter_state_previous.power_limit == inverter_state_previous.power_max and inverter_state_current.power_limit < inverter_state_previous.power_limit:
@@ -48,7 +52,7 @@ class ChannelSurplus:
                 if p_dc_unlimited > 0:
                     diff_p = 100-round(p_dc_limited*100/p_dc_unlimited)
                     if diff_p > 10:  # diff p > 10%
-                        key = self.key(p_dc_limited, u_dc_limited)
+                        key = self.__key(p_dc_limited, u_dc_limited)
                         records = list(self.db.get(key, []))
                         records.append(p_dc_unlimited)
                         if len(records) > 20:
@@ -69,10 +73,10 @@ class ChannelSurplus:
             p_dc_current = current_inverter_state.p_dc1
             u_dc_current = current_inverter_state.u_dc1
             spare = p_ac_limit - p_dc_current
-            p_dc_unlimited_list = sorted(list(self.db.get(self.key(p_dc_current, u_dc_current), [])))
+            p_dc_unlimited_list = sorted(list(self.db.get(self.__key(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
-                spare = round(p_dc_unlimited/5)*5 - p_dc_current
+                spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
             return 0 if spare < 0 else spare
 
 
