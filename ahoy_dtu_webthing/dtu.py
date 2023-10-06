@@ -60,8 +60,8 @@ class ChannelSurplus:
                         self.db.put(key, records)
                         logging.info(self.name + "#channel" + ("1" if self.is_channel1 else "2") + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
 
-    def measurements(self) -> List[Dict[str, float]]:
-        return list(itertools.chain.from_iterable(self.db.get_values()))
+    def measurements(self) -> Dict[str, List[float]]:
+        return { key: self.db.get(key) for key in self.db.keys()}
 
     def spare_power(self, current_inverter_state: InverterState) -> int:
         if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
@@ -375,7 +375,7 @@ class Inverter:
         self.channel2_surplus.record_measure(inverter_state_old, inverter_state_new)
 
     @property
-    def measurements(self) -> Dict[str, List[Dict[str, float]]]:
+    def measurements(self) -> Dict[str, Dict[str, List[float]]]:
         return {
                 "channel1" : self.channel1_surplus.measurements(),
                 "channel2" : self.channel2_surplus.measurements()
