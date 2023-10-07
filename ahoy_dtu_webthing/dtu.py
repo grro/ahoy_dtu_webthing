@@ -130,7 +130,10 @@ class Inverter:
 
     @property
     def spare_power(self) -> int:
-        return self.channel1_surplus.spare_power(self.state()) + self.channel2_surplus.spare_power(self.state())
+        spare = self.channel1_surplus.spare_power(self.state()) + self.channel2_surplus.spare_power(self.state())
+        if spare + self.p_ac > self.power_max:
+            spare = self.power_max - self.p_ac
+        return spare
 
     def close(self):
         self.is_running = False
