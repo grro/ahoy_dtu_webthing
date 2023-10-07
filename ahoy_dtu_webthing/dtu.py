@@ -78,6 +78,9 @@ class ChannelSurplus:
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
+                logging.info("inverter " + self.name + " prediction data available. spare = " + str() + "W (estimated)")
+            else:
+                logging.info("inverter " + self.name + " no prediction data. spare = " + str(p_ac_channel_max) + "W (max) - " + str(p_dc_current) + "W (current)")
             spare = 0 if spare < 0 else spare
             spare = p_ac_channel_max if spare > p_ac_channel_max else spare
             return spare
