@@ -29,7 +29,7 @@ class InverterState:
 class ChannelSurplus:
 
     def __init__(self, name: str, is_channel1: bool, num_channels: int = 2):
-        self.name = name + "_ch1" if is_channel1 else "_ch2"
+        self.name = name + ("_ch1" if is_channel1 else "_ch2")
         self.is_channel1 = is_channel1
         self.num_channels = num_channels
         self.db = SimpleDB("inverter_" + name)
