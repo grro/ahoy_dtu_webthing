@@ -28,10 +28,11 @@ class InverterState:
 
 class ChannelSurplus:
 
-    def __init__(self, name: str, is_channel1: bool):
-        self.name = name
+    def __init__(self, name: str, is_channel1: bool, num_channels: int = 2):
+        self.name = name + "_ch1" if is_channel1 else "_ch2"
         self.is_channel1 = is_channel1
-        self.db = SimpleDB("inverter_" + name + "_ch1" if is_channel1 else "_ch2")
+        self.num_channels = num_channels
+        self.db = SimpleDB("inverter_" + name)
 
     @staticmethod
     def smoothen(power: int) -> int:
@@ -58,7 +59,7 @@ class ChannelSurplus:
                         if len(records) > 20:
                             records.pop(0)
                         self.db.put(key, records)
-                        logging.info(self.name + "#channel" + ("1" if self.is_channel1 else "2") + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
+                        logging.info(self.name + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
 
     def measurements(self) -> Dict[str, List[float]]:
         return { key: self.db.get(key) for key in self.db.keys()}
@@ -69,15 +70,17 @@ class ChannelSurplus:
             return 0
         else:
             # power limit (almost) reached
-            p_ac_limit = round(current_inverter_state.power_max/2)
+            p_ac_channel_max = round(current_inverter_state.power_max/self.num_channels)
             p_dc_current = current_inverter_state.p_dc1
             u_dc_current = current_inverter_state.u_dc1
-            spare = p_ac_limit - p_dc_current
+            spare = p_ac_channel_max - p_dc_current
             p_dc_unlimited_list = sorted(list(self.db.get(self.__key(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
-            return 0 if spare < 0 else spare
+            spare = 0 if spare < 0 else spare
+            spare = p_ac_channel_max if spare > p_ac_channel_max else spare
+            return spare
 
 
 class Inverter:
@@ -130,7 +133,9 @@ class Inverter:
 
     @property
     def spare_power(self) -> int:
-        spare = self.channel1_surplus.spare_power(self.state()) + self.channel2_surplus.spare_power(self.state())
+        spare_ch1 = self.channel1_surplus.spare_power(self.state())
+        spare_ch2 = self.channel2_surplus.spare_power(self.state())
+        spare = spare_ch1 + spare_ch2
         if spare + self.p_ac > self.power_max:
             spare = self.power_max - self.p_ac
         return spare
