@@ -214,7 +214,6 @@ class App:
                 print(" sudo " + self.entrypoint + " --command deregister --port " + str(port))
                 print(" sudo " + self.entrypoint + " --command log --port " + str(port))
                 print(" sudo journalctl -f -n 50 -u " + service_info.name)
-
         return True
 
     def do_listen(self, port: int, args: Dict[str, Any]) -> bool:
