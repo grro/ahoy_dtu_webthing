@@ -212,7 +212,6 @@ class App:
             for service_info in self.unit.list_installed():
                 port = service_info.port
                 print(" sudo " + self.entrypoint + " --command deregister --port " + str(port))
-                print(" sudo " + self.entrypoint + " --command log --port " + str(port))
                 print(" sudo journalctl -f -n 50 -u " + service_info.name)
         return True
 
