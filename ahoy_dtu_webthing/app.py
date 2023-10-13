@@ -13,7 +13,7 @@ from typing import List, Any, Dict
 @dataclass
 class ServiceInfo:
     file: str
-    name: str
+    servicename: str
     port: int
     active: bool
 
@@ -210,9 +210,8 @@ class App:
         if len(self.unit.list_installed()) > 0:
             print("example commands for registered services")
             for service_info in self.unit.list_installed():
-                port = service_info.port
-                print(" sudo " + self.entrypoint + " --command deregister --port " + str(port))
-                print(" sudo journalctl -f -n 50 -u " + service_info.name)
+                print(" sudo " + self.entrypoint + " --command deregister --port " + str(service_info.port))
+                print(" sudo journalctl -f -n 50 -u " + service_info.servicename)
         return True
 
     def do_listen(self, port: int, args: Dict[str, Any]) -> bool:

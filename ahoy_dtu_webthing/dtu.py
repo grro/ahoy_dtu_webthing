@@ -78,9 +78,9 @@ class ChannelSurplus:
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
-                logging.info(self.name + " prediction data available. spare = " + str(spare) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
+                logging.info(self.name + " prediction data available. spare = " + str(round(spare)) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
             else:
-                logging.info(self.name + " no prediction data. spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
+                logging.info(self.name + " no prediction data. spare = " + str(round(spare)) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
             spare = 0 if spare < 0 else spare
             spare = p_ac_channel_max if spare > p_ac_channel_max else spare
             return round(spare)
