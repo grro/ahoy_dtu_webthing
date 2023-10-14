@@ -211,7 +211,7 @@ class App:
             print("example commands for registered services")
             for service_info in self.unit.list_installed():
                 print(" sudo " + self.entrypoint + " --command deregister --port " + str(service_info.port))
-                print(" sudo journalctl -f -n 50 -u " + service_info.servicename)
+                print(" sudo journalctl -f -n 200 -u " + service_info.servicename)
         return True
 
     def do_listen(self, port: int, args: Dict[str, Any]) -> bool:
