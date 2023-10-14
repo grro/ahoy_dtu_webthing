@@ -74,16 +74,18 @@ class ChannelSurplus:
             p_dc_current = current_inverter_state.p_dc1 if self.is_channel1 else current_inverter_state.p_dc2
             u_dc_current = current_inverter_state.u_dc1 if self.is_channel1 else current_inverter_state.u_dc2
             spare = p_ac_channel_max - p_dc_current
+            spare = 0 if spare < 0 else spare
+            spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
             p_dc_unlimited_list = sorted(list(self.db.get(self.__key(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
-                logging.info(self.name + " prediction data available. spare = " + str(round(spare)) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
+                spare = 0 if spare < 0 else spare
+                spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
+                logging.info(self.name + " prediction data available. spare = " + str(spare) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
             else:
-                logging.info(self.name + " no prediction data. spare = " + str(round(spare)) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
-            spare = 0 if spare < 0 else spare
-            spare = p_ac_channel_max if spare > p_ac_channel_max else spare
-            return round(spare)
+                logging.info(self.name + " no prediction data. spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
+            return spare
 
     @property
     def __class__(self):
