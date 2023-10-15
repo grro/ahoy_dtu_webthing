@@ -6,11 +6,13 @@ import logging
 from threading import Thread
 from random import randint
 from dataclasses import dataclass
-from typing import Set, Optional, List, Dict
+from typing import Set, Optional, List, Dict, Tuple
 from requests import Session
 from time import sleep
 from datetime import datetime
 from redzoo.database.simple import SimpleDB
+
+
 
 
 @dataclass
@@ -26,6 +28,26 @@ class InverterState:
     i_dc2: float
 
 
+@dataclass
+class Key:
+    p_dc_limited: int
+    u_dc_limited: int
+
+    @staticmethod
+    def smoothen(power: int) -> int:
+        return round(power/5)*5  # 0 Watt, 5 Watt, 10 Watt, 15 Watt, ...
+
+    @staticmethod
+    def stringified(p_dc_limited: int, u_dc_limited: int):
+        key = Key(Key.smoothen(p_dc_limited), u_dc_limited)
+        return str(key.p_dc_limited) + "_" + str(key.u_dc_limited)
+
+    @staticmethod
+    def of(key: str):
+        p_dc_limited, u_dc_limited = key.split("_")
+        return Key(p_dc_limited, u_dc_limited)
+
+
 class ChannelSurplus:
 
     def __init__(self, name: str, is_channel1: bool, num_channels: int = 2):
@@ -35,13 +57,10 @@ class ChannelSurplus:
         self.__db = SimpleDB("inverter_" + name)
 
     @staticmethod
-    def smoothen(power: int) -> int:
-        return round(power/5)*5  # 0 Watt, 5 Watt, 10 Watt, 15 Watt, ...
+    def __prediction_string(p_dc_limited: int, u_dc_limited: float, p_dc_unlimited: int) -> str:
+        return str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W"
 
     @staticmethod
-    def __key(p_dc_limited: int, u_dc_limited: float) -> str:
-        return str(ChannelSurplus.smoothen(p_dc_limited)) + "_" + str(round(u_dc_limited))
-
     def record_measure(self, inverter_state_previous: InverterState, inverter_state_current: InverterState):
         if inverter_state_previous.power_limit == inverter_state_previous.power_max and inverter_state_current.power_limit < inverter_state_previous.power_limit:
             u_dc_limited = round(inverter_state_current.u_dc1 if self.is_channel1 else inverter_state_current.u_dc2)
@@ -53,16 +72,16 @@ class ChannelSurplus:
                 if p_dc_unlimited > 0:
                     diff_p = 100-round(p_dc_limited*100/p_dc_unlimited)
                     if diff_p > 10:  # diff p > 10%
-                        key = self.__key(p_dc_limited, u_dc_limited)
+                        key = Key.stringified(p_dc_limited, u_dc_limited)
                         records = list(self.__db.get(key, []))
                         records.append(p_dc_unlimited)
                         if len(records) > 20:
                             records.pop(0)
                         self.__db.put(key, records)
-                        logging.info(self.name + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
+                        logging.info(self.name + "  measure added:  " + ChannelSurplus.__prediction_string(p_dc_limited, u_dc_limited, p_dc_unlimited))
 
-    def measurements(self) -> Dict[str, List[float]]:
-        return {key: self.__db.get(key) for key in self.__db.keys()}
+    def measurements(self) -> List[str]:
+        return sorted([ChannelSurplus.__prediction_string(Key.of(stringified_key).p_dc_limited, Key.of(stringified_key).u_dc_limited, statistics.median(self.__db.get(stringified_key))) for stringified_key in self.__db.keys()])
 
     def spare_power(self, current_inverter_state: InverterState) -> int:
         if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
@@ -71,20 +90,20 @@ class ChannelSurplus:
         else:
             # power limit (almost) reached
             p_ac_channel_max = round(current_inverter_state.power_max/self.num_channels)
-            p_dc_current = current_inverter_state.p_dc1 if self.is_channel1 else current_inverter_state.p_dc2
-            u_dc_current = current_inverter_state.u_dc1 if self.is_channel1 else current_inverter_state.u_dc2
+            p_dc_current = round(current_inverter_state.p_dc1 if self.is_channel1 else current_inverter_state.p_dc2)
+            u_dc_current = round(current_inverter_state.u_dc1 if self.is_channel1 else current_inverter_state.u_dc2)
             spare = p_ac_channel_max - p_dc_current
             spare = 0 if spare < 0 else spare
             spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
-            p_dc_unlimited_list = sorted(list(self.__db.get(self.__key(p_dc_current, u_dc_current), [])))
+            p_dc_unlimited_list = sorted(list(self.__db.get(Key.stringified(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
-                spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
+                spare = p_dc_unlimited - p_dc_current
                 spare = 0 if spare < 0 else spare
                 spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
-                logging.info(self.name + " spare = " + str(spare) + "W (" + str(p_dc_current) + "W/" + str(u_dc_current) + "V -> " + str(p_dc_unlimited) + "W)")
+                logging.info(self.name + " spare = " + str(spare) + "W ("+ ChannelSurplus.__prediction_string(p_dc_current, u_dc_current, p_dc_unlimited) + ")")
             else:
-                logging.info(self.name + " no prediction data (" + str(round(p_dc_current)) + "W/" + str(round(u_dc_current)) + "V). spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
+                logging.info(self.name + " no prediction data (" + str(p_dc_current) + "W/" + str(u_dc_current) + "V). spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(p_dc_current) + "W current)")
             return spare
 
     @property
