@@ -83,6 +83,10 @@ class ChannelSurplus:
     def measurements(self) -> List[str]:
         return sorted([ChannelSurplus.__prediction_string(Key.of(stringified_key).p_dc_limited, Key.of(stringified_key).u_dc_limited, statistics.median(self.__db.get(stringified_key))) for stringified_key in self.__db.keys()])
 
+    def __normalized_spare(self, p_ac_channel_max: int, spare: int) -> int:
+        spare = 0 if spare < 0 else spare
+        return p_ac_channel_max if spare > p_ac_channel_max else spare
+
     def spare_power(self, current_inverter_state: InverterState) -> int:
         if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
             # power limit not reached
@@ -92,15 +96,11 @@ class ChannelSurplus:
             p_ac_channel_max = round(current_inverter_state.power_max/self.num_channels)
             p_dc_current = round(current_inverter_state.p_dc1 if self.is_channel1 else current_inverter_state.p_dc2)
             u_dc_current = round(current_inverter_state.u_dc1 if self.is_channel1 else current_inverter_state.u_dc2)
-            spare = p_ac_channel_max - p_dc_current
-            spare = 0 if spare < 0 else spare
-            spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
+            spare = self.__normalized_spare(p_ac_channel_max, p_ac_channel_max - p_dc_current)
             p_dc_unlimited_list = sorted(list(self.__db.get(Key.stringified(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
-                spare = p_dc_unlimited - p_dc_current
-                spare = 0 if spare < 0 else spare
-                spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
+                spare = self.__normalized_spare(p_ac_channel_max, p_dc_unlimited - p_dc_current)
                 logging.info(self.name + " spare = " + str(spare) + "W ("+ ChannelSurplus.__prediction_string(p_dc_current, u_dc_current, p_dc_unlimited) + ")")
             else:
                 logging.info(self.name + " no prediction data (" + str(p_dc_current) + "W/" + str(u_dc_current) + "V). spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(p_dc_current) + "W current)")
