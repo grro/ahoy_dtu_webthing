@@ -33,7 +33,6 @@ class ChannelSurplus:
         self.is_channel1 = is_channel1
         self.num_channels = num_channels
         self.__db = SimpleDB("inverter_" + name)
-        logging.info(name + " created (db entries: " + str(len(self.__db.keys())) + ")")
 
     @staticmethod
     def smoothen(power: int) -> int:
@@ -83,9 +82,9 @@ class ChannelSurplus:
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
                 spare = 0 if spare < 0 else spare
                 spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
-                logging.info(self.name + " spare = " + str(spare) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
+                logging.info(self.name + " spare = " + str(spare) + "W (" + str(p_dc_current) + "W/" + str(u_dc_current) + "V -> " + str(p_dc_unlimited) + "W)")
             else:
-                logging.info(self.name + " no prediction data. spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
+                logging.info(self.name + " no prediction data (" + str(round(p_dc_current)) + "W/" + str(round(u_dc_current)) + "V). spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
             return spare
 
     @property
