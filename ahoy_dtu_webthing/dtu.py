@@ -32,7 +32,8 @@ class ChannelSurplus:
         self.name = name + ("_ch1" if is_channel1 else "_ch2")
         self.is_channel1 = is_channel1
         self.num_channels = num_channels
-        self.db = SimpleDB("inverter_" + name)
+        self.__db = SimpleDB("inverter_" + name)
+        logging.info(name + " created (db entries: " + str(len(self.__db.keys())) + ")")
 
     @staticmethod
     def smoothen(power: int) -> int:
@@ -54,15 +55,15 @@ class ChannelSurplus:
                     diff_p = 100-round(p_dc_limited*100/p_dc_unlimited)
                     if diff_p > 10:  # diff p > 10%
                         key = self.__key(p_dc_limited, u_dc_limited)
-                        records = list(self.db.get(key, []))
+                        records = list(self.__db.get(key, []))
                         records.append(p_dc_unlimited)
                         if len(records) > 20:
                             records.pop(0)
-                        self.db.put(key, records)
+                        self.__db.put(key, records)
                         logging.info(self.name + "  measure added:  " + str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W")
 
     def measurements(self) -> Dict[str, List[float]]:
-        return { key: self.db.get(key) for key in self.db.keys()}
+        return {key: self.__db.get(key) for key in self.__db.keys()}
 
     def spare_power(self, current_inverter_state: InverterState) -> int:
         if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
@@ -76,13 +77,13 @@ class ChannelSurplus:
             spare = p_ac_channel_max - p_dc_current
             spare = 0 if spare < 0 else spare
             spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
-            p_dc_unlimited_list = sorted(list(self.db.get(self.__key(p_dc_current, u_dc_current), [])))
+            p_dc_unlimited_list = sorted(list(self.__db.get(self.__key(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
                 p_dc_unlimited = statistics.median(p_dc_unlimited_list)
                 spare = ChannelSurplus.smoothen(p_dc_unlimited) - p_dc_current
                 spare = 0 if spare < 0 else spare
                 spare = round(p_ac_channel_max if spare > p_ac_channel_max else spare)
-                logging.info(self.name + " prediction data available. spare = " + str(spare) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
+                logging.info(self.name + " spare = " + str(spare) + "W (estimated unlimited " +str(round(p_dc_unlimited)) + "W, current " + str(round(p_dc_current)) + "W)")
             else:
                 logging.info(self.name + " no prediction data. spare = " + str(spare) + "W (" + str(p_ac_channel_max) + "W max - " + str(round(p_dc_current)) + "W current)")
             return spare
