@@ -81,7 +81,7 @@ class ChannelSurplus:
                         logging.info(self.name + "  measure added:  " + ChannelSurplus.__prediction_string(p_dc_limited, u_dc_limited, p_dc_unlimited))
 
     def measurements(self) -> List[str]:
-        return sorted([ChannelSurplus.__prediction_string(Key.of(stringified_key).p_dc_limited, Key.of(stringified_key).u_dc_limited, statistics.median(self.__db.get(stringified_key))) for stringified_key in self.__db.keys()])
+        return sorted([ChannelSurplus.__prediction_string(Key.of(stringified_key).p_dc_limited, Key.of(stringified_key).u_dc_limited, statistics.median(self.__db.get(stringified_key))) for stringified_key in self.__db.keys() if "_" in stringified_key])
 
     def __normalized_spare(self, p_ac_channel_max: int, spare: int) -> int:
         spare = 0 if spare < 0 else spare
