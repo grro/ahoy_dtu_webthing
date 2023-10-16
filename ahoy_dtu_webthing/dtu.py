@@ -57,10 +57,9 @@ class ChannelSurplus:
         self.__db = SimpleDB("inverter_" + name)
 
     @staticmethod
-    def __prediction_string(p_dc_limited: int, u_dc_limited: float, p_dc_unlimited: int) -> str:
+    def __prediction_string(p_dc_limited: int, u_dc_limited: int, p_dc_unlimited: int) -> str:
         return str(p_dc_limited) + "W/" + str(u_dc_limited) + "V -> " + str(p_dc_unlimited) + "W"
 
-    @staticmethod
     def record_measure(self, inverter_state_previous: InverterState, inverter_state_current: InverterState):
         if inverter_state_previous.power_limit == inverter_state_previous.power_max and inverter_state_current.power_limit < inverter_state_previous.power_limit:
             u_dc_limited = round(inverter_state_current.u_dc1 if self.is_channel1 else inverter_state_current.u_dc2)
@@ -99,7 +98,7 @@ class ChannelSurplus:
             spare = self.__normalized_spare(p_ac_channel_max, p_ac_channel_max - p_dc_current)
             p_dc_unlimited_list = sorted(list(self.__db.get(Key.stringified(p_dc_current, u_dc_current), [])))
             if len(p_dc_unlimited_list) > 0:
-                p_dc_unlimited = statistics.median(p_dc_unlimited_list)
+                p_dc_unlimited = round(statistics.median(p_dc_unlimited_list))
                 spare = self.__normalized_spare(p_ac_channel_max, p_dc_unlimited - p_dc_current)
                 logging.info(self.name + " spare = " + str(spare) + "W ("+ ChannelSurplus.__prediction_string(p_dc_current, u_dc_current, p_dc_unlimited) + ")")
             else:
@@ -411,10 +410,10 @@ class Inverter:
         self.channel2_surplus.record_measure(inverter_state_old, inverter_state_new)
 
     @property
-    def measurements(self) -> Dict[str, Dict[str, List[float]]]:
+    def measurements(self) -> Dict[str, List[str]]:
         return {
-                "channel1" : self.channel1_surplus.measurements(),
-                "channel2" : self.channel2_surplus.measurements()
+                "channel1": self.channel1_surplus.measurements(),
+                "channel2": self.channel2_surplus.measurements()
                }
 
     def register_listener(self, listener):
