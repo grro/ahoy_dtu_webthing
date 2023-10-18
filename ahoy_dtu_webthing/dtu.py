@@ -84,7 +84,8 @@ class ChannelSurplus:
 
     def __normalized_spare(self, p_ac_channel_max: int, spare: int) -> int:
         spare = 0 if spare < 0 else spare
-        return p_ac_channel_max if spare > p_ac_channel_max else spare
+        spare = p_ac_channel_max if spare > p_ac_channel_max else spare
+        return spare
 
     def spare_power(self, current_inverter_state: InverterState) -> int:
         if current_inverter_state.p_ac < (current_inverter_state.power_limit * 0.7):
@@ -165,6 +166,7 @@ class Inverter:
         spare = spare_ch1 + spare_ch2
         if spare + self.p_ac > self.power_max:
             spare = self.power_max - self.p_ac
+        logging.info("inverter " + self.name + " spare total = " + str(spare) + "W (current " + str(self.p_ac) + "W)")
         return spare
 
     def close(self):
