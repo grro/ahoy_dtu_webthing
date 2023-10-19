@@ -166,7 +166,8 @@ class Inverter:
         spare = spare_ch1 + spare_ch2
         if spare + self.p_ac > self.power_max:
             spare = self.power_max - self.p_ac
-        logging.info("inverter " + self.name + " spare total = " + str(spare) + "W (current " + str(self.p_ac) + "W)")
+        if spare > 0:
+            logging.info("inverter " + self.name + " spare total = " + str(spare) + "W (current " + str(self.p_ac) + "W)")
         return spare
 
     def close(self):
